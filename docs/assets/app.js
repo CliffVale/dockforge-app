@@ -1,4 +1,5 @@
-/* DockForge shared JS: nav injection, local storage progress, helpers */
+/* DockForge app shell: pro-layout nav + sidebar, theme toggle, command
+   palette, toasts, progress, quizzes, badges. */
 (function () {
   "use strict";
 
@@ -12,31 +13,170 @@
     }[c]));
   }
 
-  // ---------- nav ----------
+  // ---------- pages (pro-layout model: title, icon, group) ----------
   const PAGES = [
-    ["index.html", "Home"],
-    ["course.html", "Learn"],
-    ["glossary.html", "Glossary"],
-    ["lab.html", "Docking Lab"],
-    ["preview.html", "Live Preview"],
-    ["results.html", "Result Viewer"]
+    { href: "index.html", label: "Home", icon: "🏠", group: "Start here" },
+    { href: "course.html", label: "Course", icon: "🎓", group: "Start here" },
+    { href: "glossary.html", label: "Glossary", icon: "📖", group: "Start here" },
+    { href: "lab.html", label: "Docking Lab", icon: "🧪", group: "Work" },
+    { href: "preview.html", label: "Live Preview", icon: "👁", group: "Work" },
+    { href: "results.html", label: "Result Viewer", icon: "📊", group: "Work" }
   ];
 
+  function hereName() { return location.pathname.split("/").pop() || "index.html"; }
+
+  // ---------- theme (shadcn pattern: data-theme on <html>) ----------
+  const THEME_KEY = "dockforge-theme";
+  function applyTheme(t) {
+    document.documentElement.dataset.theme = t;
+    try { localStorage.setItem(THEME_KEY, t); } catch { /* ignore */ }
+    const b = $("#themeToggle");
+    if (b) b.textContent = t === "light" ? "🌙 Dark" : "☀️ Light";
+  }
+  function initTheme() {
+    let t = "dark";
+    try { t = localStorage.getItem(THEME_KEY) || "dark"; } catch { /* ignore */ }
+    applyTheme(t);
+    document.addEventListener("click", e => {
+      if (e.target && e.target.id === "themeToggle") {
+        applyTheme(document.documentElement.dataset.theme === "light" ? "dark" : "light");
+      }
+    });
+  }
+
+  // ---------- top nav ----------
   function buildNav() {
-    const here = location.pathname.split("/").pop() || "index.html";
+    const here = hereName();
     const nav = document.createElement("div");
     nav.className = "nav";
     nav.innerHTML =
       '<div class="wrap">' +
       '<a class="brand" href="index.html">Dock<span>Forge</span></a>' +
-      PAGES.map(([href, label]) =>
-        `<a class="link${href === here ? " active" : ""}" href="${href}">${label}</a>`
-      ).join("") +
+      PAGES.map(p => `<a class="link${p.href === here ? " active" : ""}" href="${p.href}">${p.label}</a>`).join("") +
       '<span style="flex:1"></span>' +
+      '<button type="button" id="themeToggle" class="theme-toggle" aria-label="Toggle theme"></button>' +
+      '<button type="button" id="cmdk" class="theme-toggle" title="Search (Ctrl+K)" aria-label="Open command palette">⌘K</button>' +
       '<a class="link" href="https://github.com/CliffVale/dockforge-app" target="_blank" rel="noopener">GitHub ↗</a>' +
       "</div>";
     const first = document.body.firstElementChild;
     document.body.insertBefore(nav, first);
+  }
+
+  // ---------- sidebar (ant-design-pro group model; index keeps full-width hero) ----------
+  function buildSidebar() {
+    const here = hereName();
+    if (here === "index.html") return;
+    const page = PAGES.find(p => p.href === here);
+    const aside = document.createElement("aside");
+    aside.className = "sidebar";
+    const groups = {};
+    PAGES.forEach(p => { (groups[p.group] = groups[p.group] || []).push(p); });
+    let html = "";
+    for (const g of Object.keys(groups)) {
+      html += `<div class="group">${esc(g)}</div>`;
+      html += groups[g].map(p =>
+        `<a class="side-link${p.href === here ? " active" : ""}" href="${p.href}">${p.icon} ${p.label}</a>`).join("");
+    }
+    aside.innerHTML = html;
+    const main = $("main.wrap");
+    if (!main) return;
+    // PageContainer pattern: title + description + breadcrumb in the content column
+    const head = `
+      <div class="page-head">
+        <div class="breadcrumb"><a href="index.html">Home</a><span class="sep">/</span><span>${esc(page ? page.label : here)}</span></div>
+        <h1>${page ? page.icon + " " + esc(page.label) : "DockForge"}</h1>
+        <p class="desc">${esc((page && PAGE_DESC[here]) || "")}</p>
+      </div>`;
+    main.classList.add("content");
+    const layout = document.createElement("div");
+    layout.className = "layout";
+    const content = document.createElement("div");
+    content.className = "content";
+    content.innerHTML = head;
+    while (main.firstChild) content.appendChild(main.firstChild);
+    layout.appendChild(aside);
+    layout.appendChild(content);
+    main.appendChild(layout);
+  }
+  const PAGE_DESC = {
+    "course.html": "Seven short lessons that take you from \"what is a ligand\" to reading a real AutoDock Vina run — no installs.",
+    "glossary.html": "Plain-English definitions of the docking vocabulary used across DockForge.",
+    "lab.html": "Your guided docking bench: pick a kit, get the grid box, and run Webina in your browser.",
+    "preview.html": "Drop any docking-related file — PDB, PDBQT, SDF, MOL2, mmCIF, AlphaFold models and more — for instant 3D preview.",
+    "results.html": "Inspect Vina poses, validate redocking against a reference, and export a lab-ready notebook."
+  };
+
+  // ---------- command palette (⌘K) ----------
+  function buildPalette() {
+    const backdrop = document.createElement("div");
+    backdrop.className = "palette-backdrop";
+    backdrop.id = "paletteBackdrop";
+    backdrop.innerHTML = `
+      <div class="palette" role="dialog" aria-label="Command palette">
+        <input type="text" id="paletteInput" placeholder="Search pages and actions…  (↑ ↓ to choose, Enter to go)" autocomplete="off" />
+        <ul class="palette-list" id="paletteList"></ul>
+      </div>`;
+    document.body.appendChild(backdrop);
+
+    const items = () => {
+      const list = PAGES.map(p => ({ label: p.icon + " " + p.label, hint: "page", go: p.href }));
+      const fileInput = $("input[type=file]");
+      if (fileInput) list.push({ label: "📎 Open a local file here", hint: "action", act: () => fileInput.click() });
+      if (hereName() === "index.html") list.push({ label: "▶ Jump to the 60-second tour", hint: "action", act: () => { const t = $("#quickStart"); if (t) t.scrollIntoView({ behavior: "smooth" }); } });
+      list.push({ label: "☀️/🌙 Toggle light/dark theme", hint: "action", act: () => applyTheme(document.documentElement.dataset.theme === "light" ? "dark" : "light") });
+      return list;
+    };
+
+    const input = $("#paletteInput"), listEl = $("#paletteList");
+    let sel = 0, current = [];
+    function render(q) {
+      const query = (q || "").toLowerCase();
+      current = items().filter(it => it.label.toLowerCase().includes(query));
+      sel = 0;
+      listEl.innerHTML = current.map((it, i) =>
+        `<li data-i="${i}" class="${i === sel ? "sel" : ""}">${esc(it.label)}<span class="hint">${esc(it.hint)}</span></li>`).join("")
+        || '<li class="muted">No matches — try "lab" or "preview"</li>';
+    }
+    function open() { backdrop.classList.add("open"); input.value = ""; render(""); setTimeout(() => input.focus(), 0); }
+    function close() { backdrop.classList.remove("open"); }
+    function run(it) {
+      close();
+      if (it.go) location.href = it.go;
+      else if (it.act) it.act();
+    }
+    document.addEventListener("keydown", e => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K")) { e.preventDefault(); backdrop.classList.contains("open") ? close() : open(); }
+      else if (e.key === "Escape" && backdrop.classList.contains("open")) close();
+      else if (backdrop.classList.contains("open") && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+        e.preventDefault();
+        sel = Math.min(current.length - 1, Math.max(0, sel + (e.key === "ArrowDown" ? 1 : -1)));
+        $$("#paletteList li").forEach((li, i) => li.classList.toggle("sel", i === sel));
+      } else if (backdrop.classList.contains("open") && e.key === "Enter") {
+        if (current[sel]) run(current[sel]);
+      }
+    });
+    backdrop.addEventListener("click", e => { if (e.target === backdrop) close(); });
+    listEl.addEventListener("click", e => {
+      const li = e.target.closest("li");
+      if (li && li.dataset.i != null && current[+li.dataset.i]) run(current[+li.dataset.i]);
+    });
+    input.addEventListener("input", () => render(input.value));
+  }
+
+  // ---------- toasts ----------
+  function ensureToastHost() {
+    if ($(".toast-host")) return;
+    const host = document.createElement("div");
+    host.className = "toast-host";
+    document.body.appendChild(host);
+  }
+  function toast(msg, kind) {
+    ensureToastHost();
+    const t = document.createElement("div");
+    t.className = "toast " + (kind || "");
+    t.textContent = msg;
+    $(".toast-host").appendChild(t);
+    setTimeout(() => t.remove(), 3400);
   }
 
   // ---------- progress store ----------
@@ -55,7 +195,6 @@
   }
   function isDone(id) { return !!loadStore()[id]; }
 
-  // Progress bar shown on course page (and any page with #progressbar)
   function renderProgress() {
     const bar = $("#progressbar");
     if (!bar) return;
@@ -101,9 +240,9 @@
     });
   }
 
-  // ---------- badges shelf (index + course) ----------
+  // ---------- badges shelf ----------
   function renderBadges() {
-    const host = document.querySelector("#badgeShelf");
+    const host = $("#badgeShelf");
     if (!host || !window.DFScience) return;
     const list = DFScience.listBadges();
     host.innerHTML = list.map(b =>
@@ -113,18 +252,18 @@
       '<span class="badge-hint">' + (b.earned ? new Date(b.at).toLocaleDateString() : DF.esc(b.hint)) + '</span>' +
       '</div>').join("");
   }
-
-  // Course Graduate badge: all 7 lessons done
   function checkGraduate() {
     if (!window.DFScience) return;
-    const total = 7;
     const done = Object.keys(loadStore()).filter(k => k.startsWith("lesson-")).length;
-    if (done >= total) DFScience.awardBadge("graduate");
+    if (done >= 7) DFScience.awardBadge("graduate");
   }
 
   // ---------- init ----------
   document.addEventListener("DOMContentLoaded", () => {
+    initTheme();
     buildNav();
+    buildSidebar();
+    buildPalette();
     wireQuizzes();
     wireLessons();
     renderProgress();
@@ -133,5 +272,5 @@
   });
 
   // export for page scripts
-  window.DF = { $, $$, esc, markDone, isDone, loadStore, saveStore };
+  window.DF = { $, $$, esc, markDone, isDone, loadStore, saveStore, toast };
 })();

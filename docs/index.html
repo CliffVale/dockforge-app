@@ -1,143 +1,108 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DockForge — learn molecular docking by doing it</title>
-<meta name="description" content="A free, beginner-friendly introduction to molecular docking with an interactive in-browser docking lab. No installation needed.">
+<title>DockForge — Beginner-friendly Molecular Docking, entirely in your browser</title>
+<meta name="description" content="Learn and run molecular docking step by step — kits, Webina walkthrough, universal format preview, and a beginner-friendly result viewer.">
 <link rel="stylesheet" href="assets/style.css">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
 </head>
 <body>
 
 <header class="hero">
   <div class="wrap">
-    <h1>Dock<span style="color:var(--accent)">Forge</span> 🧬</h1>
-    <p class="lead">Learn <b>molecular docking</b> — the computational technique that predicts how small molecules
-    (like drugs) bind to proteins (like disease targets) — by <b>actually doing it</b>, right in your browser.
-    No installs, no accounts, no command line.</p>
-    <div class="row">
-      <a class="btn" href="lab.html">🚀 Launch the Docking Lab</a>
-      <a class="btn ghost" href="course.html">📖 Start the 7-lesson course</a>
-    </div>
+    <span class="badge blue">Beginner-first · zero install</span>
+    <h1>Dock<span style="color:var(--primary)">Forge</span> — docking, demystified</h1>
+    <p class="lead">Everything to go from <b>“I have a protein and a molecule”</b> to <b>“here is my ranked pose table”</b> — with a guided kit, a click-by-click Webina walkthrough, a universal file-format previewer, and honest explanations of the science.</p>
+    <p>
+      <a class="btn" href="lab.html">🧪 Start the Guided Lab</a>
+      <a class="btn ghost" href="course.html">🎓 Take the 7-lesson Course</a>
+    </p>
   </div>
 </header>
 
 <main class="wrap">
-  <div class="cards">
-    <a class="card" href="course.html">
-      <div class="ico">📖</div>
-      <h3>Learn the basics</h3>
-      <p>Seven bite-sized lessons: proteins, ligands, pockets, scoring — with quick quizzes and saved progress.</p>
-    </a>
-    <a class="card" href="lab.html">
-      <div class="ico">⚗️</div>
-      <h3>Run a real docking</h3>
-      <p>Our lab embeds <b>Webina</b> (AutoDock Vina compiled to WebAssembly): docking runs 100% on your device.</p>
-    </a>
-    <a class="card" href="results.html">
-      <div class="ico">📊</div>
-      <h3>Visualize results</h3>
-      <p>Drag in your docked poses and see them in interactive 3D with the binding pocket highlighted.</p>
-    </a>
-    <a class="card" href="glossary.html">
-      <div class="ico">🔤</div>
-      <h3>Glossary</h3>
-      <p>Every jargon term — PDBQT, K<sub>d</sub>, pose, grid box — explained in one line each.</p>
-    </a>
-  </div>
-
-  <h2>Your first docking in 5 minutes</h2>
-  <div class="panel">
-    <ol>
-      <li><b>Open the <a href="lab.html">Docking Lab</a></b> and click <em>“Load the DNA example”</em> — it fills in
-        a real drug–DNA complex (the minor-groove drug netropsin inside a B-DNA dodecamer, PDB <a href="https://www.rcsb.org/structure/121D" target="_blank" rel="noopener">121D</a>)</li>
-      <li>Press <b>Run Docking</b> in the embedded Webina app. Your computer does the science; nothing is uploaded.</li>
-      <li>When it finishes, download the poses (<span class="mono">.pdbqt</span>) and drag them into the
-        <a href="results.html">Result Viewer</a> to see where the molecule wants to sit inside the double helix.</li>
-      <li>Curious why it sits <em>there</em>? That’s exactly what the <a href="course.html">course</a> explains. 🎓</li>
-    </ol>
-  </div>
-
-  <h2>🧬 Oligo designer</h2>
-  <div class="panel">
-    <p class="small muted" style="margin-top:0">Type or paste a DNA/RNA sequence — get complement, reverse complement, GC%, melting
-    temperature and molecular weight instantly (the stats a docking/simulation workflow starts from). Nothing is sent anywhere.</p>
-    <div class="row" style="gap:8px; flex-wrap:wrap">
-      <input id="oligoInput" class="mono" placeholder="e.g. CGCGAATTCGCG" style="flex:1; min-width:220px; background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:.5rem .7rem">
-      <button class="btn ghost small" id="oligoSample">try Drew–Dickerson dodecamer</button>
+  <!-- quick start tour (tremor-style KPI cards + numbered steps) -->
+  <section id="quickStart" style="margin-top:1.4rem">
+    <h2>Your first dock in four steps</h2>
+    <div class="cards">
+      <div class="card"><span class="ico">1️⃣</span><h3>Pick a kit</h3><p>On the <b>Docking Lab</b> page choose 121D (DNA + netropsin, guided) or 1BNA (bring your own ligand). Files pre-load instantly.</p></div>
+      <div class="card"><span class="ico">2️⃣</span><h3>Get the grid box</h3><p>DockForge computes the box for you and pre-fills the Webina form — center and size included, with a screenshot walkthrough.</p></div>
+      <div class="card"><span class="ico">3️⃣</span><h3>Run Webina</h3><p>Docking runs <i>in your browser tab</i> (no server, no uploads). Typical kit run: a few minutes depending on your device.</p></div>
+      <div class="card"><span class="ico">4️⃣</span><h3>Read the results</h3><p>Drop the output on <b>Result Viewer</b> — ranked poses, best-fit RMSD vs reference, interactions and a printable notebook.</p></div>
     </div>
-    <div id="oligoOut" style="margin-top:.6rem"></div>
-  </div>
+  </section>
 
-  <h2>🏅 Your badges</h2>
-  <div class="badge-shelf" id="badgeShelf"></div>
-
-  <h2>How this site works</h2>
-  <div class="grid2">
-    <div class="panel">
-      <h3 style="margin-top:0">🔒 Private by design</h3>
-      <p>The docking engine is <a href="https://durrantlab.pitt.edu/webina/" target="_blank" rel="noopener">Webina</a>
-      — Vina compiled to WebAssembly. Structures you load or draw never leave your browser.
-      This site itself is static files on GitHub Pages: no accounts, no analytics, no uploads.</p>
+  <!-- live stats strip (tremor pattern) -->
+  <section>
+    <h2>DockForge at a glance</h2>
+    <div class="stats" id="statsStrip"></div>
+    <div class="chart-card">
+      <div class="chart-title">Sample Vina run — docking scores by pose (kcal/mol; lower is better)</div>
+      <div id="scoreChart"></div>
     </div>
-    <div class="panel">
-      <h3 style="margin-top:0">🎓 Honest about limits</h3>
-      <p>Browser docking is for <b>learning</b>. Research-grade work needs prepared structures, protonation care,
-      pose validation (e.g. PoseBusters) and much more sampling — see our
-      <a href="https://github.com/CliffVale/dockforge-app#readme" target="_blank" rel="noopener">README</a> for the
-      full open-source pipeline this project is growing into.</p>
-    </div>
-  </div>
+  </section>
 
-  <div class="warnbox">
-    ⚠️ <b>Health disclaimer:</b> Docking scores are <em>hypotheses</em>, not medical advice. Nothing here should
-    guide treatment decisions — it’s an educational sandbox for structural biology.
-  </div>
+  <!-- badges -->
+  <section>
+    <h2>🏅 Your badges</h2>
+    <div class="cards" id="badgeShelf"></div>
+  </section>
+
+  <!-- tool map -->
+  <section>
+    <h2>Tool map</h2>
+    <div class="cards">
+      <a class="card" href="lab.html"><span class="ico">🧪</span><h3>Docking Lab</h3><p>Guided kits, grid boxes, Webina walkthrough, DNA example.</p></a>
+      <a class="card" href="preview.html"><span class="ico">👁</span><h3>Live Preview</h3><p>16 docking formats in, instant 3D + tables out. Includes a round-trip tester for your own files.</p></a>
+      <a class="card" href="results.html"><span class="ico">📊</span><h3>Result Viewer</h3><p>Multi-model Vina output, redocking validation, H-bond hints, notebook export.</p></a>
+      <a class="card" href="course.html"><span class="ico">🎓</span><h3>Course</h3><p>Seven lessons from ligand basics to reading real docking tables — with quizzes and progress saving.</p></a>
+      <a class="card" href="glossary.html"><span class="ico">📖</span><h3>Glossary</h3><p>Every term the tools use, in plain English, linked from everywhere.</p></a>
+      <a class="card" href="https://github.com/CliffVale/dockforge-app" target="_blank" rel="noopener"><span class="ico">🛠</span><h3>Open source</h3><p>Zero-dependency, auditable client-side code. Test suite included — run it yourself.</p></a>
+    </div>
+  </section>
 </main>
 
-<footer class="footer"><div class="wrap">
-  Built with ❤️ for structural-biology beginners · docking engine:
-  <a href="https://durrantlab.pitt.edu/webina/" target="_blank" rel="noopener">Webina (Durrant Lab)</a> ·
-  viewer: <a href="https://3dmol.org" target="_blank" rel="noopener">3Dmol.js</a> ·
-  structures from the <a href="https://www.rcsb.org" target="_blank" rel="noopener">RCSB PDB</a> ·
-  <a href="https://github.com/CliffVale/dockforge-app" target="_blank" rel="noopener">source (MIT)</a>
-</div></footer>
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/2.4.0/3Dmol-min.js"></script>
 <script src="assets/formats.js"></script>
 <script src="assets/science.js"></script>
 <script src="assets/app.js"></script>
 <script>
 (function () {
   "use strict";
-  const $ = s => document.querySelector(s);
-  function esc(s) {
-    return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const $ = DF.$, esc = DF.esc;
+
+  // stats strip: real numbers from the loaded libraries and fixture-free computations
+  function buildStats() {
+    const S = window.DFFormats, SC = window.DFScience;
+    const fmts = S ? S.SUPPORTED.read.length : 0;
+    const writers = S ? S.SUPPORTED.write.length : 0;
+    const items = [
+      { label: "Formats readable", value: fmts, delta: "PDB → CHARMM → AlphaFold" },
+      { label: "Formats writable", value: writers, delta: "column-exact, doc-verified" },
+      { label: "Guided kits", value: 2, delta: "121D netropsin · 1BNA DNA" },
+      { label: "Course lessons", value: 7, delta: "with quizzes + progress" }
+    ];
+    $("#statsStrip").innerHTML = items.map(i =>
+      `<div class="stat-card"><div class="stat-label">${esc(i.label)}</div><div class="stat-value">${esc(i.value)}</div><div class="stat-delta">${esc(i.delta)}</div></div>`).join("");
   }
-  const seen = new Set(JSON.parse(localStorage.getItem("dockforge-oligos") || "[]"));
-  function analyze(seq) {
-    const st = DFScience.oligoStats(seq);
-    if (!st.length) { $("#oligoOut").innerHTML = ""; return; }
-    seen.add(st.seq);
-    try { localStorage.setItem("dockforge-oligos", JSON.stringify([...seen])); } catch (e) {}
-    if (seen.size >= 3) DFScience.awardBadge("base-pairs");
-    $("#oligoOut").innerHTML =
-      '<div class="scorecard" style="display:flex;gap:14px;flex-wrap:wrap;margin:10px 0">' +
-      '<div class="sc"><b>' + st.length + '</b><span>nt</span></div>' +
-      '<div class="sc"><b>' + st.gcPct + '%</b><span>GC</span></div>' +
-      '<div class="sc"><b>' + st.tm + '°C</b><span>Tm (' + st.tmRule + ')</span></div>' +
-      '<div class="sc"><b>' + st.mw + '</b><span>g/mol</span></div>' +
-      '<div class="sc mono" style="max-width:100%;word-break:break-all"><b style="font-size:14px">' + esc(st.seq) + '</b><span>cleaned</span></div>' +
-      '</div>' +
-      '<p class="small muted">complement: <span class="mono">' + esc(DFScience.complement(st.seq)) + '</span> · reverse-complement: <span class="mono">' + esc(DFScience.reverseComplement(st.seq)) + '</span></p>';
+
+  // sample score chart — classic kit-style values, clearly labeled as a sample
+  function buildChart() {
+    const data = [
+      { label: "pose 1", v: -7.3 }, { label: "pose 2", v: -6.8 }, { label: "pose 3", v: -6.4 },
+      { label: "pose 4", v: -5.9 }, { label: "pose 5", v: -5.2 }
+    ];
+    const min = -8, max = 0;
+    $("#scoreChart").innerHTML = data.map(d => {
+      const pct = Math.max(2, Math.round(((d.v - min) / (max - min)) * 100));
+      return `<div class="chart-row"><span class="lab">${esc(d.label)}</span>` +
+        `<span><span class="chart-bar" style="width:${pct}%"></span></span>` +
+        `<span class="val">${d.v.toFixed(1)}</span></div>`;
+    }).join("") + '<div class="chart-axis"><span>0 (weak)</span><span>−8 kcal/mol (strong) — sample data</span></div>';
   }
-  document.addEventListener("DOMContentLoaded", () => {
-    $("#oligoInput").addEventListener("input", e => analyze(e.target.value));
-    $("#oligoSample").addEventListener("click", () => {
-      $("#oligoInput").value = "CGCGAATTCGCG";
-      analyze("CGCGAATTCGCG");
-    });
-  });
+
+  document.addEventListener("DOMContentLoaded", () => { buildStats(); buildChart(); });
 })();
 </script>
 </body>

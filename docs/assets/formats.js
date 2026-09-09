@@ -46,6 +46,27 @@
 
   function isWater(res) { return /^(HOH|WAT|DOD|H2O|SOL)$/.test(res); }
 
+  // Derive an element symbol from an atom NAME in formats that carry no element
+  // column (GRO/CRD/PSF). The naive route — elementFromSymbol(name) — misreads
+  // real cases: "CA" (protein C-alpha) becomes calcium, "NE2" becomes neon,
+  // "OW" (water oxygen) becomes "Ow". Rules, in priority order:
+  //   1. Ion convention (GROMACS/CHARMM): residue name == element symbol
+  //      (res "MG"/atom "MG" -> Mg; disambiguates Cd-ion vs C-delta too).
+  //   2. Known protein/nucleotide/water atom names: first letter is the
+  //      element (CA = C-alpha, NE2 = N-epsilon, OP1 = phosphate O).
+  //   3. Exact 2-char element names (CL, BR, FE, ...): proper-case them.
+  //   4. Fallback: generic symbol parsing.
+  function elemFromAtomName(rawName, res) {
+    const nm = String(rawName || "").trim().replace(/^[0-9]+/, "").replace(/[0-9]+$/, "");
+    const rs = String(res || "").trim().toUpperCase();
+    if (!nm) return "X";
+    if (/^(CL|BR|NA|MG|ZN|FE|MN|CO|NI|CU|SE|SN|AL|SI|K|CA|CD|PB|PT|AU|AG|HG|LI)$/.test(rs)) return elementFromSymbol(rs);
+    if (/^(CA|CB|CG|CG1|CG2|CD|CD1|CD2|CE|CE1|CE2|CE3|CZ|CZ2|CZ3|CH2|N|NE|NE1|NE2|NH1|NH2|NZ|OD1|OD2|OE1|OE2|OG|OG1|OH|OXT|O|SD|SG|S|OP1|OP2|C5M|C7M)$/i.test(nm)) return nm[0].toUpperCase();
+    if (/^(OW|HW1|HW2|HW3|HW)$/i.test(nm)) return nm[0].toUpperCase();
+    if (/^(CL|BR|NA|MG|ZN|FE|MN|CO|NI|CU|SE|SN|AL|SI|PB|PT|AU|AG|HG|LI|CD)$/i.test(nm)) return nm[0].toUpperCase() + nm[1].toLowerCase();
+    return elementFromSymbol(nm);
+  }
+
   // One normalized atom shape for every reader:
   // {serial,name,alt,res,resi,chain,x,y,z,elem,occ,bfac,charge,adtype,het,model}
   function blankAtom() {
@@ -732,7 +753,7 @@
       }
       // GROMACS stores coordinates in nanometers -> convert to Angstrom
       a.x *= 10; a.y *= 10; a.z *= 10;
-      a.elem = elementFromSymbol(a.name.replace(/^[0-9]+/, ""));
+      a.elem = elemFromAtomName(a.name, a.res);
       a.res = a.res || "UNK"; a.het = false;
       if (isNaN(a.x) || isNaN(a.y) || isNaN(a.z)) return { format: "gro", atoms, error: "bad coordinate line " + (i + 1) };
       atoms.push(a);
@@ -744,7 +765,9 @@
       const v = boxLine.split(/\s+/).map(parseFloat);
       if (v.length >= 3 && v.every(n2 => !isNaN(n2))) box = v.slice(0, 3).map(n2 => n2 * 10);
     }
-    return { format: "gro", atoms, bonds: [], meta: { title: (lines[0] || "").trim(), boxNm: box ? box.map(b => b / 10) : null } };
+    // box is reported in nm units exactly as GROMACS wrote it (meta.boxNm),
+    // plus meta.boxA in Angstrom for convenience. Reported as null when absent.
+    return { format: "gro", atoms, bonds: [], meta: { title: (lines[0] || "").trim(), boxNm: box ? box.map(b => b / 10) : null, boxA: box } };
   }
 
   function toGro(atoms, opts) {
@@ -799,7 +822,7 @@
         if (seg) a.chain = seg;
         a.bfac = parseFloat(line.slice(62, 72)) || 0;
       }
-      a.elem = elementFromSymbol(a.name.replace(/^[0-9]+/, ""));
+      a.elem = elemFromAtomName(a.name, a.res);
       a.het = false;
       if (isNaN(a.x) || isNaN(a.y) || isNaN(a.z)) return { format: "crd", atoms, error: "bad atom line " + (i + 1) };
       atoms.push(a);
@@ -861,7 +884,7 @@
           a.resi = parseInt(toks[1], 10) || 1; a.res = toks[2]; a.name = toks[3];
           a.charge = parseFloat(toks[5]);
         } else continue;
-        a.elem = elementFromSymbol(a.name.replace(/^[0-9]+/, ""));
+        a.elem = elemFromAtomName(a.name, a.res);
         a.het = false;
         atoms.push(a);
       } else if (section === "bonds") {

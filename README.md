@@ -43,6 +43,22 @@ beyond ±3) — and round-tripped against real files, so external fixed-column t
 OpenBabel) parse our exports correctly. The ligand's bond table (from SDF/MOL2/CIF) travels through as
 CONECT records when poses are shown in the viewer — real chemistry, not distance guesses.
 
+## 🎨 UI/UX system
+
+The interface was rebuilt on ideas adapted from four flagship UI projects ( studied for their patterns,
+not imported as dependencies — the site stays zero-build, zero-framework):
+
+- **[ant-design/ant-design-pro](https://github.com/ant-design/ant-design-pro)** → ProLayout shell: grouped
+  sidebar navigation (Start here / Work), PageContainer-style page headers with breadcrumbs and
+  descriptions, consistent nav across pages.
+- **[shadcn/ui](https://github.com/shadcn-ui/ui)** → semantic design-token CSS (`--card`, `--primary`,
+  `--ring`, `--radius`…) with a one-click **light/dark theme** (persisted), focus rings, and consistent
+  card/badge/button primitives.
+- **[shadcn-ui/taxonomy](https://github.com/shadcn-ui/taxonomy)** → a **⌘K command palette** on every page
+  for instant navigation and actions (open file, toggle theme), keyboard-first interaction.
+- **[tremorlabs/tremor](https://github.com/tremorlabs/tremor)** → KPI stat cards and clean bar-chart
+  summaries on the home page (pure CSS/SVG — no chart library).
+
 ## 🚀 Run it
 
 **Live:** https://cliffvale.github.io/dockforge-app/ (after Pages is enabled — Settings → Pages → deploy from `docs/` folder, main branch)
