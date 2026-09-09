@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Learn docking — DockForge course</title>
+<meta name="description" content="Seven bite-sized lessons that take you from 'what is a protein' to reading your first docking results.">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+</head>
+<body>
+
+<main class="wrap">
+  <h1>Docking 101 — seven tiny lessons</h1>
+  <p class="muted">Read a lesson, answer the two checkpoint questions, hit “Mark lesson complete”.
+  Your progress is saved in your browser (nowhere else). ~20 minutes total.</p>
+
+  <div id="progressbar" class="progressbar" data-total="7"><div></div></div>
+  <p id="progress-label" class="muted small">0 of 7 lessons complete (0%)</p>
+
+  <!-- 1 -->
+  <section class="lesson" data-lesson="1">
+    <h2>1 · What is molecular docking?</h2>
+    <p>Proteins are tiny machines shaped like crumpled ribbons. Their shape <em>is</em> their function: hormones stick
+    to shaped pockets on receptor proteins, enzymes grip molecules in active-site clefts, antibodies hug invaders.
+    <b>Docking</b> is a computer simulation that asks: <em>“If I had a small molecule (a <b>ligand</b>), where and how
+    would it attach to this protein’s surface?”</em></p>
+    <p>The classic picture is <b>lock and key</b>: the protein pocket is the lock, the ligand is the key. Real biology adds
+    a twist — both partners are floppy (“<b>induced fit</b>”), so docking must try <em>many</em> keys in <em>slightly
+    bending</em> locks. The output is two things: a <b>pose</b> (the 3D position/orientation of the ligand) and a
+    <b>score</b> (a number estimating how tightly it binds). Drug hunters use it to triage millions of candidate
+    molecules before ever mixing one in a test tube.</p>
+    <div class="quiz" data-id="quiz-1a">
+      <p class="q">In the lock-and-key picture, the “key” is…</p>
+      <label><input type="radio" name="q1a"> the protein pocket</label>
+      <label><input type="radio" name="q1a"> the ligand</label>
+      <label><input type="radio" name="q1a"> the water around them</label>
+      <div class="expl">Correct: the ligand is the key; the pocket is the lock. (And real keys and locks both flex a little!)</div>
+    </div>
+    <div class="quiz" data-id="quiz-1b">
+      <p class="q">A docking run gives you two things. They are…</p>
+      <label><input type="radio" name="q1b"> a sequence and a species name</label>
+      <label><input type="radio" name="q1b"> a pose and a score</label>
+      <label><input type="radio" name="q1b"> a recipe and a shopping list</label>
+      <div class="expl">Correct: the <b>pose</b> (geometry of binding) and the <b>score</b> (estimated strength).</div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="lesson" data-lesson="2">
+    <h2>2 · The players: proteins and ligands</h2>
+    <p>To dock, you need a 3D structure of both players, usually as a <b>PDB file</b> — a plain-text list of every atom
+    with x/y/z coordinates. Protein structures come mainly from X-ray crystallography, cryo-EM or NMR experiments, and are
+    shared in the <a href="https://www.rcsb.org" target="_blank" rel="noopener">RCSB Protein Data Bank</a> (230,000+ entries,
+    each with a 4-character code like <span class="mono">1X71</span>). If no structure exists, computers can predict one —
+    that’s what AlphaFold made famous.</p>
+    <p>Ligands are small molecules: a drug candidate, a nutrient, a fragment. You can describe them compactly as a
+    <b>SMILES</b> string — e.g. caffeine is
+    <span class="mono">Cn1cnc2c1c(=O)n(C)c(=O)n2C</span> — which software converts to 3D. In a PDB file, protein atoms live
+    in <span class="mono">ATOM</span> records and ligand atoms in <span class="mono">HETATM</span> records. Before docking,
+    structures are “prepared”: incomplete side chains fixed, hydrogens added, waters usually removed (except the odd one
+    that matters!).</p>
+    <div class="quiz" data-id="quiz-2a">
+      <p class="q">A PDB file is…</p>
+      <label><input type="radio" name="q2a"> a compressed image of the protein</label>
+      <label><input type="radio" name="q2a"> a text file listing every atom’s position</label>
+      <label><input type="radio" name="q2a"> the protein’s DNA sequence</label>
+      <div class="expl">Correct: plain text, one line per atom, with coordinates — you can open it in any text editor.</div>
+    </div>
+    <div class="quiz" data-id="quiz-2b">
+      <p class="q">Which string compactly encodes a small molecule’s atoms and bonds?</p>
+      <label><input type="radio" name="q2b"> JSON</label>
+      <label><input type="radio" name="q2b"> SMILES</label>
+      <label><input type="radio" name="q2b"> FASTA</label>
+      <div class="expl">Correct: SMILES. (FASTA encodes protein/DNA *sequences* — no 3D, no bond info.)</div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="lesson" data-lesson="3">
+    <h2>3 · Binding pockets: where molecules stick</h2>
+    <p>Proteins are lumpy. Some lumps are <b>binding pockets</b> — cavities whose size, shape and chemistry make small
+    molecules happy to sit there. Hydrophobic pockets hug greasy groups; charged pockets welcome oppositely charged
+    parts; deep narrow clefts grip long skinny molecules.</p>
+    <p>How do you find the pocket? Three ways: (1) <b>co-crystal evidence</b> — if the crystallographers captured a ligand
+    inside, you already know where it binds (this is what our NGAL example uses); (2) <b>geometry software</b> — tools like
+    P2Rank scan the surface for enclosed cavities and rank their “druggability”; (3) <b>knowledge</b> — a conserved active
+    site (e.g. a kinase hinge) tells you where to look. Docking into the <em>wrong</em> pocket is one of the most common
+    beginner mistakes — the best score in a meaningless pocket is still meaningless.</p>
+    <div class="quiz" data-id="quiz-3a">
+      <p class="q">The fastest way to know a protein’s real binding site?</p>
+      <label><input type="radio" name="q3a"> Dock into every pocket and pick the best score</label>
+      <label><input type="radio" name="q3a"> Look at a co-crystal structure with a ligand already inside</label>
+      <label><input type="radio" name="q3a"> Choose the largest cavity</label>
+      <div class="expl">Correct: a co-crystallized ligand is direct experimental evidence of the site. Best-score hunting can mislead.</div>
+    </div>
+    <div class="quiz" data-id="quiz-3b">
+      <p class="q">Which pocket property does NOT make a ligand more likely to bind there?</p>
+      <label><input type="radio" name="q3b"> Matching hydrophobic/hydrophilic character</label>
+      <label><input type="radio" name="q3b"> Shape complementarity</label>
+      <label><input type="radio" name="q3b"> Being as far from the surface as chemically possible</label>
+      <div class="expl">Correct: what matters is complementarity — shape + chemistry. “Deepest pocket” isn’t a binding rule.</div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="lesson" data-lesson="4">
+    <h2>4 · Poses and scores: what the computer actually does</h2>
+    <p>Docking is a <b>search</b> plus a <b>judgment</b>. The search (often a clever random walk called Monte Carlo, plus
+    genetic algorithms) generates thousands of candidate poses — ligand here flipped, ligand there bent. The judgment is
+    the <b>scoring function</b>: a fast physics-flavored formula estimating each pose’s favorability from hydrogen bonds,
+    hydrophobic contacts, shape complementarity, electrostatics, and penalties for strain or clashes.</p>
+    <p>Vina’s scores come out in roughly kcal/mol, <em>more negative = tighter predicted binding</em>. A rough rhyme for
+    drug-like molecules: −6 is decent, −8 is interesting, −11 would make you double-check your preparation. Crucial honesty:
+    scores are <em>relative and error-prone</em> — great for ranking similar compounds in the same pocket, unreliable as
+    absolute binding energies, and no substitute for experiments.</p>
+    <div class="quiz" data-id="quiz-4a">
+      <p class="q">Vina reports −6.2 for ligand A and −8.9 for ligand B (same pocket, same protocol). What’s the reasonable read?</p>
+      <label><input type="radio" name="q4a"> B absolutely binds 43% stronger</label>
+      <label><input type="radio" name="q4a"> B is predicted to bind more favorably — worth follow-up</label>
+      <label><input type="radio" name="q4a"> A is toxic</label>
+      <div class="expl">Correct: more negative ≈ more favorable <em>prediction</em>. Scores rank; they don’t hand you exact energies.</div>
+    </div>
+    <div class="quiz" data-id="quiz-4b">
+      <p class="q">A scoring function estimates…</p>
+      <label><input type="radio" name="q4b"> how many atoms a molecule has</label>
+      <label><input type="radio" name="q4b"> how favorable a pose is, from contacts &amp; clashes</label>
+      <label><input type="radio" name="q4b"> the color of the protein</label>
+      <div class="expl">Correct: it weighs H-bonds, hydrophobic contact, electrostatics, clashes and strain into one number.</div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="lesson" data-lesson="5">
+    <h2>5 · Preparing molecules: PDBQT and friends</h2>
+    <p>Docking engines are picky eaters. Vina wants <b>PDBQT</b> files — like PDB but with <b>partial charges (Q)</b> and
+    <b>atom types (T)</b> added. Preparing a <em>ligand</em> means: generate a sensible 3D shape, add hydrogens,
+    pick protonation states (is that amine +1 or neutral at pH 7.4?), choose tautomers, and mark which bonds can rotate.
+    Preparing a <em>receptor</em> means: repair missing atoms, add hydrogens, assign charges.</p>
+    <p>Why the fuss? A missing hydrogen or the wrong protonation state changes every predicted H-bond. Two hydrogens at
+    a clash instead of one — instant garbage score. Classic prep tools: <span class="mono">mk_prepare_ligand.py</span>
+    (Meeko) for ligands, PDB2PQR/PDBFixer for receptors. Our Webina lab includes a converter, so you can often start from
+    plain PDB/SDF/MOL2 — but understanding what got fixed makes you a better scientist, not just a button-pusher.</p>
+    <div class="quiz" data-id="quiz-5a">
+      <p class="q">What does the “QT” in PDBQT add to a normal PDB file?</p>
+      <label><input type="radio" name="q5a"> Quantum theory</label>
+      <label><input type="radio" name="q5a"> partial charges and atom types</label>
+      <label><input type="radio" name="q5a"> the protein’s quaternary structure</label>
+      <div class="expl">Correct: partial Charges and atom Types — the extras Vina’s scoring needs.</div>
+    </div>
+    <div class="quiz" data-id="quiz-5b">
+      <p class="q">Skipping ligand protonation (picking the right ionization state) most directly breaks…</p>
+      <label><input type="radio" name="q5b"> predicted hydrogen bonds and electrostatics</label>
+      <label><input type="radio" name="q5b"> the file’s file name</label>
+      <label><input type="radio" name="q5b"> nothing, ever</label>
+      <div class="expl">Correct: wrong ionization → wrong charge pattern → wrong H-bonds → misleading scores.</div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="lesson" data-lesson="6">
+    <h2>6 · The grid box: telling the search where to look</h2>
+    <p>Docking doesn’t search the whole universe — you define a <b>grid box</b>: the 3D region of space around the protein
+    where ligand poses may appear. Box placement is strategy: too small and you’ve excluded the real answer; too large and
+    you dilute the search (and slow it down) while inviting false pockets.</p>
+    <p>The standard practice: center the box on the known pocket and pad ~8–12&nbsp;Å beyond the co-crystallized ligand in
+    every direction. If you have <em>no</em> site knowledge, you can run <b>blind docking</b> — a box enclosing the entire
+    protein surface — which Webina can do but which costs time and reliability at larger proteins. The other key knob is
+    <b>exhaustiveness</b> (Vina’s sampling effort): 8 is quick learning territory; 32+ is for results you’d write down.</p>
+    <div class="quiz" data-id="quiz-6a">
+      <p class="q">A good box for docking into a known site…</p>
+      <label><input type="radio" name="q6a"> covers the whole protein</label>
+      <label><input type="radio" name="q6a"> centers on the pocket with ~8–12 Å padding</label>
+      <label><input type="radio" name="q6a"> covers one atom</label>
+      <div class="expl">Correct: pocket-centered, comfortably padded — focused but roomy.</div>
+    </div>
+    <div class="quiz" data-id="quiz-6b">
+      <p class="q">Raising exhaustiveness mainly…</p>
+      <label><input type="radio" name="q6b"> changes the scoring function</label>
+      <label><input type="radio" name="q6b"> samples harder, improving the chance of finding the best poses</label>
+      <label><input type="radio" name="q6b"> adds more water molecules</label>
+      <div class="expl">Correct: it’s the search-effort dial — better sampling, more time. Scores’ meaning doesn’t change.</div>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="lesson" data-lesson="7">
+    <h2>7 · Reading results like a scientist</h2>
+    <p>Vina outputs a table of <b>modes</b> (poses): each with a score and three RMSD values — distances (in Å) from the
+    best-scoring pose. Pose 1 is the winner; lower modes are alternatives. The three RMSD columns tell you how much the
+    search agrees with itself: if the top several poses cluster tightly, the result is more trustworthy than a scattered
+    mess of similar scores.</p>
+    <p>Then the fun part: <b>interrogate the pose</b>. Which residues hug the ligand? Are there hydrogen bonds? Salt
+    bridges? π-stacking? In the <a href="results.html">Result Viewer</a> you’ll load your poses over the pocket and see.
+    For published-quality claims, scientists add <b>redocking validation</b> (can the engine recover the crystal ligand’s
+    position? aim for RMSD &lt; 2 Å) and pose-validity checks (PoseBusters). Always end by asking: does this make chemical
+    sense, and what experiment would test it?</p>
+    <div class="quiz" data-id="quiz-7a">
+      <p class="q">RMSD values in the results table measure…</p>
+      <label><input type="radio" name="q7a"> how far each pose is from the top pose</label>
+      <label><input type="radio" name="q7a"> the protein’s molecular weight</label>
+      <label><input type="radio" name="q7a"> the room temperature</label>
+      <div class="expl">Correct: RMSD = average atom-to-atom distance between poses — a spread/consistency measure.</div>
+    </div>
+    <div class="quiz" data-id="quiz-7b">
+      <p class="q">“Redocking the crystal ligand and hoping for RMSD &lt; 2 Å” is…</p>
+      <label><input type="radio" name="q7b"> a hallucination test for the computer</label>
+      <label><input type="radio" name="q7b"> a standard validation that your protocol can reproduce known binding</label>
+      <label><input type="radio" name="q7b"> a way to make scores more negative</label>
+      <div class="expl">Correct: if the engine can’t re-find a known answer, don’t trust it on unknown ones.</div>
+    </div>
+  </section>
+
+  <div class="panel">
+    🏁 <b>Finished the course?</b> Head to the <a href="lab.html">Docking Lab</a> and run the NGAL example with your new
+    eyes — then graduate to the <a href="results.html">Result Viewer</a>.
+  </div>
+</main>
+
+<footer class="footer"><div class="wrap">
+  <a href="index.html">DockForge</a> · progress saved locally in your browser ·
+  <a href="https://github.com/CliffVale/dockforge-app" target="_blank" rel="noopener">source (MIT)</a>
+</div></footer>
+
+<script src="assets/app.js"></script>
+</body>
+</html>

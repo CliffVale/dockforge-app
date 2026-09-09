@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Docking Lab — DockForge</title>
+<meta name="description" content="Run a real AutoDock Vina docking in your browser with Webina, guided by the DockForge lab: example files, recommended parameters, and a pocket preview.">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+<style>
+  ol.steps{counter-reset:step;list-style:none;padding:0}
+  ol.steps>li{counter-increment:step;position:relative;padding:.35rem 0 .35rem 2.6rem;margin:.5rem 0}
+  ol.steps>li::before{content:counter(step);position:absolute;left:0;top:.3rem;width:1.7rem;height:1.7rem;border-radius:50%;
+    background:var(--accent);color:#08111d;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:.9rem}
+</style>
+</head>
+<body>
+
+<main class="wrap">
+  <h1>Docking Lab ⚗️</h1>
+  <p class="lead muted">Dock a real ligand into a real protein using <b>AutoDock Vina</b> — compiled to your browser as
+  <a href="https://durrantlab.pitt.edu/webina/" target="_blank" rel="noopener">Webina</a>. Nothing is uploaded anywhere;
+  your CPU does the science.</p>
+
+  <div class="warnbox">
+    💡 <b>Heads-up:</b> the Webina app lives inside the frame below and loads its docking engine (a few MB) on first use —
+    give it a few seconds. It needs a Chromium-based browser (Chrome/Edge/Brave). Everything runs locally.
+  </div>
+
+  <h2>Step 1 · Get your example files</h2>
+  <div class="panel">
+    <p>Each “example kit” = <b>receptor</b> (the protein, ready for docking) + <b>ligand</b> (a molecule that really binds it,
+    taken from the crystal structure) + <b>recommended grid-box numbers</b> from that ligand’s pocket.</p>
+    <div class="row" id="kitButtons">
+      <button class="btn kit" data-pdb="1x71">🧪 NGAL + 2,3-dihydroxybenzamide (1X71) — the guided one</button>
+      <button class="btn ghost kit" data-pdb="1ngl">🧪 NGAL, apo (1NGL) — for your own ligand ideas</button>
+    </div>
+    <div id="kitBox" style="display:none;margin-top:1rem">
+      <div class="row spread">
+        <div class="row">
+          <a class="btn small" id="dlReceptor" download>⬇ receptor .pdb</a>
+          <a class="btn small" id="dlLigand" download>⬇ ligand .pdb</a>
+        </div>
+        <span class="pill tag-good" id="kitTag"></span>
+      </div>
+      <table id="paramTable" style="max-width:30rem">
+        <thead><tr><th>Webina parameter</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td>Grid box center (x, y, z)</td><td class="mono" id="pCenter">—</td></tr>
+          <tr><td>Grid box size (x, y, z)</td><td class="mono" id="pSize">—</td></tr>
+          <tr><td>Exhaustiveness</td><td class="mono">8 <span class="muted">(fast learning) · 32 for publishable-ish sampling</span></td></tr>
+          <tr><td>Modes / num_modes</td><td class="mono">9 <span class="muted">(default)</span></td></tr>
+        </tbody>
+      </table>
+      <p class="small muted">Box numbers were computed from the co-crystallized ligand’s position (pocket padded by ~8–12 Å) —
+      lesson 6 explains why. The crystal actually shows two fragment copies of this ligand in the pocket; the kit uses one
+      copy, and the box comfortably covers both. For 1NGL (no ligand inside) you’ll pick your own box: try centering on the
+      same cavity (the calyx) or run blind docking.</p>
+    </div>
+  </div>
+
+  <h2>Step 2 · Load files into Webina &amp; dock</h2>
+  <div class="panel">
+    <ol class="steps">
+      <li>In the Webina app below, open the <b>“Input Parameters”</b> tab and click <b>“Use Example Files”</b> if you just
+        want a dry run — or click <b>Choose Files</b> and select the receptor + ligand <span class="mono">.pdb</span> files
+        you downloaded above (Webina converts them to PDBQT for you).</li>
+      <li>Enter the <b>Grid box center and size</b> from the table above (or keep the default box for the dry run).</li>
+      <li>Set <b>Exhaustiveness = 8</b> for your first run.</li>
+      <li>Press <b>“Start Docking”</b> and wait — the NGAL example typically takes a couple of minutes on a laptop.</li>
+      <li>When it finishes, download the <b>output PDBQT</b> (poses) and the results table, then open the
+        <a href="results.html">Result Viewer</a> and drag the files in to see where the ligand wants to live. 🎉</li>
+    </ol>
+  </div>
+
+  <h2>Step 3 · Run it (embedded Webina)</h2>
+  <iframe id="webinaFrame" src="https://durrantlab.pitt.edu/apps/webina/" title="Webina — AutoDock Vina in the browser"
+          allow="cross-origin-isolated" loading="lazy"></iframe>
+  <p class="small muted">If the frame stays blank, open
+    <a href="https://durrantlab.pitt.edu/apps/webina/" target="_blank" rel="noopener">Webina in its own tab</a> —
+    everything else on this page still applies.</p>
+
+  <h2>Peek at the pocket before you dock (optional)</h2>
+  <div class="panel">
+    <div class="row spread">
+      <div class="row">
+        <select id="pdbPick">
+          <option value="1x71">1X71 — NGAL + 2,3-dihydroxybenzamide</option>
+          <option value="1ngl">1NGL — NGAL (apo)</option>
+        </select>
+        <button class="btn small" id="reloadPdb">Load structure</button>
+      </div>
+      <span class="small muted">Pocket = protein residues with any atom within 4 Å of the ligand (client-side calculation).</span>
+    </div>
+    <div class="viewer" id="glviewer"><div class="vhint">Loading 3D viewer…</div></div>
+    <div id="pocketPills" class="row" style="margin-top:.6rem"></div>
+  </div>
+</main>
+
+<footer class="footer"><div class="wrap">
+  <a href="index.html">DockForge</a> · docking engine
+  <a href="https://durrantlab.pitt.edu/webina/" target="_blank" rel="noopener">Webina (Apache-2.0)</a> ·
+  viewer <a href="https://3dmol.org" target="_blank" rel="noopener">3Dmol.js (BSD)</a> ·
+  structures from the <a href="https://www.rcsb.org" target="_blank" rel="noopener">RCSB PDB</a>
+</div></footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/2.4.0/3Dmol-min.js"></script>
+<script src="assets/app.js"></script>
+<script>
+(function(){
+  "use strict";
+  const { $, $$ } = window.DF;
+
+  /* ---------------- example kits ---------------- */
+  const KITS = {
+    "1x71": {
+      receptor: "assets/1x71_receptor.pdb",
+      ligand:   "assets/db1_ligand.pdb",
+      receptorName: "1x71_receptor.pdb",
+      ligandName:   "db1_ligand.pdb",
+      center: "29.5, 78.1, 64.8",
+      size:   "15.1, 17.4, 14.8",
+      tag: "NGAL (lipocalin-2) + 2,3-dihydroxybenzamide — crystal-ligand fragment, 11 atoms"
+    },
+    "1ngl": {
+      receptor: "assets/1ngl.pdb",
+      ligand:   null,
+      receptorName: "1ngl.pdb",
+      ligandName:   null,
+      center: "— choose your own (try blind docking)",
+      size:   "— or reuse the 1X71 pocket box",
+      tag: "NGAL without ligand — bring your own molecule (SDF/MOL2/PDB)"
+    }
+  };
+
+  function wireKits(){
+    $$(".kit").forEach(btn => btn.addEventListener("click", () => showKit(btn.dataset.pdb)));
+  }
+  function showKit(id){
+    const k = KITS[id]; if(!k) return;
+    $("#kitBox").style.display = "block";
+    $("#pCenter").textContent = k.center;
+    $("#pSize").textContent   = k.size;
+    $("#kitTag").textContent  = k.tag;
+    const dlR = $("#dlReceptor"), dlL = $("#dlLigand");
+    dlR.href = k.receptor; dlR.download = k.receptorName;
+    if (k.ligand) { dlL.style.display = ""; dlL.href = k.ligand; dlL.download = k.ligandName; }
+    else { dlL.style.display = "none"; }
+  }
+
+  /* ---------------- pocket preview (3Dmol) ---------------- */
+  let viewer = null;
+  function parseAtoms(text){
+    const atoms = [];
+    for (const line of text.split("\n")) {
+      if (line.startsWith("ATOM") || line.startsWith("HETATM")) {
+        atoms.push({
+          x: parseFloat(line.slice(30,38)),
+          y: parseFloat(line.slice(38,46)),
+          z: parseFloat(line.slice(46,54)),
+          res: line.slice(17,20).trim(),
+          resi: parseInt(line.slice(22,26),10),
+          chain: line.slice(21,22).trim(),
+          het: line.startsWith("HETATM")
+        });
+      }
+    }
+    return atoms;
+  }
+  const WATER = new Set(["HOH", "WAT", "DOD", "H2O"]);
+  function pocketOf(atoms){
+    const prot = atoms.filter(a => !a.het);
+    // group non-water HETATM records into ligand instances; pick the largest one
+    const inst = new Map(); // key -> atom list
+    for (const a of atoms) {
+      if (!a.het || WATER.has(a.res)) continue;
+      const key = a.chain + "|" + a.res + "|" + a.resi;
+      if (!inst.has(key)) inst.set(key, []);
+      inst.get(key).push(a);
+    }
+    if (!inst.size || !prot.length) return null;
+    let best = null;
+    for (const [key, list] of inst) if (!best || list.length > best[1].length) best = [key, list];
+    const lig = best[1];
+    const site = new Set();
+    for (const p of prot) {
+      for (const l of lig) {
+        const dx=p.x-l.x, dy=p.y-l.y, dz=p.z-l.z;
+        if (dx*dx+dy*dy+dz*dz < 16) { site.add(p.chain+"|"+p.resi+"|"+p.res); break; }
+      }
+    }
+    return site.size ? { residues: site, ligandKey: best[0], ligandAtoms: lig } : null;
+  }
+  function showPockets(site){
+    const box = $("#pocketPills");
+    if (!site) { box.innerHTML = '<span class="muted small">No ligand in this structure — pocket preview skipped.</span>'; return; }
+    const list = Array.from(site).map(s => s.split("|"));
+    list.sort((a,b) => a[1]-b[1]);
+    box.innerHTML = '<span class="muted small">Pocket residues:</span> ' +
+      list.map(([ch,ri,rs]) => `<span class="pill"><b>${rs}${ri}</b>${ch?("·"+ch):""}</span>`).join("");
+  }
+  function loadViewer(pdbId){
+    const el = $("#glviewer");
+    el.innerHTML = "";
+    const cfg = { backgroundColor: "#0a0f18", antialias: true };
+    viewer = $3Dmol.createViewer(el, cfg) || viewer;
+    if (!viewer) { el.innerHTML = '<div class="vhint">3D viewer unavailable (offline?)</div>'; return; }
+    fetch(`assets/${pdbId}.pdb`)
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
+      .then(text => {
+        viewer.clear();
+        viewer.addModel(text, "pdb");
+        const atoms = parseAtoms(text);
+        const site = pocketOf(atoms);
+        // cartoon protein
+        viewer.setStyle({}, {cartoon:{color:"#5f7d99", opacity:0.85}});
+        if (site) {
+          // the chosen ligand instance: green sticks + transparent spheres
+          const [lch, lres, lri] = site.ligandKey.split("|");
+          const ligSel = { resn: lres, resi: parseInt(lri,10), chain: lch || undefined };
+          viewer.addStyle(ligSel, {stick:{radius:0.18, colorscheme:"greenCarbon"}});
+          viewer.addStyle(ligSel, {sphere:{scale:0.22, opacity:0.4, colorscheme:"greenCarbon"}});
+          // pocket sidechains in gold
+          viewer.addStyle({or:Array.from(site.residues).map(s=>{
+            const [ch,ri] = s.split("|");
+            return {chain: ch||undefined, resi: parseInt(ri,10)};
+          }), het:false}, {stick:{radius:0.12, color:"#f6c445"}});
+          showPockets(site.residues);
+        } else {
+          showPockets(null);
+        }
+        viewer.zoomTo();
+        viewer.render();
+      })
+      .catch(() => { el.innerHTML = '<div class="vhint">Could not load structure. Are you offline?</div>'; });
+  }
+  function wireViewer(){
+    $("#reloadPdb").addEventListener("click", () => loadViewer($("#pdbPick").value));
+    if (window.$3Dmol) loadViewer("1x71");
+    else $("#glviewer").innerHTML = '<div class="vhint">3D viewer could not load (offline?).</div>';
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    wireKits();
+    wireViewer();
+  });
+})();
+</script>
+</body>
+</html>

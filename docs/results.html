@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Result Viewer — DockForge</title>
+<meta name="description" content="Drag in your Webina/Vina docking output to see poses in 3D, inspect scores, pocket residues and possible hydrogen bonds.">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+</head>
+<body>
+
+<main class="wrap">
+  <h1>Result Viewer 📊</h1>
+  <p class="lead muted">Finished a docking in the <a href="lab.html">lab</a>? Drag the <b>output PDBQT</b> (poses) here —
+  optionally with your <b>receptor PDB</b> — to see the poses in 3D, with scores and pocket contacts. Files never leave your browser.</p>
+
+  <div class="grid2">
+    <div class="drag" id="dropPoses">
+      <b>Drop poses here</b><br>
+      <span class="small">.pdbqt (Webina/Vina output), .sdf, .mol2 or .pdb — or click to browse</span><br>
+      <button class="btn small" style="margin-top:.5rem" id="browsePoses">Browse…</button>
+      <input type="file" id="filePoses" multiple accept=".pdbqt,.sdf,.mol2,.pdb,.txt" style="display:none">
+    </div>
+    <div class="drag" id="dropReceptor">
+      <b>Optional: drop the receptor here</b><br>
+      <span class="small">.pdb (protein only, e.g. the kit's <span class="mono">*_receptor.pdb</span>)</span><br>
+      <button class="btn ghost small" style="margin-top:.5rem" id="btnBundledRec">Use bundled 1X71 receptor</button>
+      <input type="file" id="fileReceptor" accept=".pdb,.txt" style="display:none">
+    </div>
+  </div>
+
+  <div class="panel" id="scorePanel" style="display:none">
+    <div class="row spread">
+      <h3 style="margin:0">Poses found: <span id="nPoses">0</span></h3>
+      <button class="btn ghost small" id="dlCsv">⬇ scores.csv</button>
+    </div>
+    <div class="reslist">
+      <table id="scoreTable">
+        <thead><tr><th>#</th><th>Score (kcal/mol)</th><th>RMSD l.b.</th><th>RMSD u.b.</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="small muted">Score = Vina’s predicted binding favorability (more negative = better, lesson 4).
+    RMSD columns measure each pose’s distance from the top pose (lesson 7).</p>
+  </div>
+
+  <div class="viewer" id="glviewer" style="display:none"><div class="vhint">Drop files to begin ✨</div></div>
+  <div id="pocketPills" class="row"></div>
+  <div class="warnbox" id="hbondNote" style="display:none">
+    🔎 Red dashed lines are a <b>distance-only hint</b> (donor/acceptor pairs within 3.5 Å) — real hydrogen-bond
+    assignment also needs geometry and chemistry (this is what tools like PLIP do properly).
+  </div>
+</main>
+
+<footer class="footer"><div class="wrap">
+  <a href="index.html">DockForge</a> · viewer <a href="https://3dmol.org" target="_blank" rel="noopener">3Dmol.js (BSD)</a> ·
+  runs 100% locally — no uploads · <a href="https://github.com/CliffVale/dockforge-app" target="_blank" rel="noopener">source (MIT)</a>
+</div></footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/2.4.0/3Dmol-min.js"></script>
+<script src="assets/app.js"></script>
+<script>
+(function(){
+  "use strict";
+  const { $, $$ } = window.DF;
+
+  const state = { poses: [], receptorText: null, current: -1 };
+
+  /* ---------- PDBQT parsing ---------- */
+  const AD2ELEM = {A:"C",C:"C",N:"N",NA:"N",NS:"N",O:"O",OA:"O",OS:"O",S:"S",SA:"S",
+                   H:"H",HD:"H",HS:"H",F:"F",CL:"Cl",BR:"Br",I:"I",P:"P",MG:"Mg",ZN:"Zn",CA:"Ca",FE:"Fe",MN:"Mn"};
+  function pdbqtBlockToPdb(lines){
+    // convert one MODEL block of pdbqt atom lines to minimal PDB (cols fixed)
+    const out = [];
+    for (const l of lines) {
+      if (!(l.startsWith("ATOM") || l.startsWith("HETATM"))) continue;
+      const name = l.slice(12,16);
+      const resn = l.slice(17,20);
+      const chain= l.slice(21,22);
+      const resi = l.slice(22,26);
+      const x=l.slice(30,38), y=l.slice(38,46), z=l.slice(46,54);
+      // last token on the line is the AD atom type
+      const tokens = l.trim().split(/\s+/);
+      const adType = (tokens[tokens.length-1] || "").toUpperCase();
+      let elem = AD2ELEM[adType] || /^[A-Z][A-Z]?$/.test(adType) ? AD2ELEM[adType] || adType[0] : "C";
+      if (adType === "OA") elem = "O";
+      const serial = String(out.length + 1).padStart(5, " ");
+      const occ = "  1.00", b = "  0.00";
+      out.push("HETATM" + serial + " " + name.padEnd(4) + " " + resn.padEnd(3) + " " + chain + resi + " " + "   " +
+               x + y + z + occ + b + "          " + String(elem).padStart(2));
+    }
+    return out.join("\n");
+  }
+  function parsePoses(text, ext){
+    if (ext === "sdf" || ext === "mol2" || (ext === "pdb" && !/MODEL /m.test(text))) {
+      return [{ name: "pose", pdbText: text, fmt: ext === "sdf" ? "sdf" : (ext === "mol2" ? "mol2" : "pdb"),
+                score: null, rms1: null, rms2: null }];
+    }
+    // pdbqt: split MODEL blocks; if no MODEL records, treat whole file as one pose
+    const poses = [];
+    const blocks = [];
+    let cur = null;
+    for (const line of text.split("\n")) {
+      if (/^MODEL /.test(line)) { cur = { lines: [], num: poses.length + 1 }; blocks.push(cur); }
+      else if (/^ENDMDL/.test(line)) { cur = null; }
+      else if (cur) cur.lines.push(line);
+    }
+    if (!blocks.length) blocks.push({ lines: text.split("\n"), num: 1 });
+    blocks.forEach((b, i) => {
+      let score = null, r1 = null, r2 = null;
+      for (const l of b.lines) {
+        const m = l.match(/REMARK VINA RESULT:\s*(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)/);
+        if (m) { score = parseFloat(m[1]); r1 = parseFloat(m[2]); r2 = parseFloat(m[3]); break; }
+      }
+      const pdbText = pdbqtBlockToPdb(b.lines);
+      if (pdbText) poses.push({ name: "mode " + (i + 1), pdbText, fmt: "pdb", score, rms1: r1, rms2: r2 });
+    });
+    return poses;
+  }
+
+  /* ---------- viewer ---------- */
+  let viewer = null;
+  function ensureViewer(){
+    const el = $("#glviewer");
+    el.style.display = "block";
+    if (viewer) return viewer;
+    el.innerHTML = "";
+    viewer = $3Dmol.createViewer(el, { backgroundColor: "#0a0f18", antialias: true });
+    return viewer;
+  }
+  function parseAtomLines(text, hetOnly){
+    const atoms = [];
+    for (const line of text.split("\n")) {
+      if (line.startsWith("ATOM") || line.startsWith("HETATM")) {
+        atoms.push({ x:+line.slice(30,38), y:+line.slice(38,46), z:+line.slice(46,54),
+                     res:line.slice(17,20).trim(), resi:parseInt(line.slice(22,26),10),
+                     chain:line.slice(21,22).trim(),
+                     elemGuess:(line.slice(76,78).trim() || line.slice(12,16).replace(/[^A-Za-z]/g,""))[0] || "",
+                     het: line.startsWith("HETATM") });
+      }
+    }
+    return atoms;
+  }
+  function renderPose(i){
+    state.current = i;
+    const v = ensureViewer(); v.clear();
+    // receptor
+    if (state.receptorText) {
+      v.addModel(state.receptorText, "pdb");
+      v.setStyle({}, { cartoon: { color: "#5f7d99", opacity: 0.85 } });
+    }
+    // all poses thin, current bold
+    state.poses.forEach((p, j) => {
+      if (j === i) return;
+      v.addModel(p.pdbText, p.fmt);
+      v.setStyle({ model: j + (state.receptorText ? 1 : 0) }, { line: { color: "#44546a", linewidth: 1 } });
+    });
+    const poseModelIndex = i + (state.receptorText ? 1 : 0);
+    v.addModel(state.poses[i].pdbText, state.poses[i].fmt);
+    v.setStyle({ model: poseModelIndex }, {
+      stick: { radius: 0.2, colorscheme: "greenCarbon" },
+      sphere: { scale: 0.25, opacity: 0.35, colorscheme: "greenCarbon" }
+    });
+    // pocket + hbond heuristics need receptor + atom coords
+    $("#pocketPills").innerHTML = "";
+    $("#hbondNote").style.display = "none";
+    if (state.receptorText) {
+      const recAtoms = parseAtomLines(state.receptorText);
+      const poseAtoms = parseAtomLines(state.poses[i].pdbText).filter(a => !isNaN(a.x));
+      // pocket residues within 4 A
+      const site = new Map();
+      for (const p of recAtoms) {
+        for (const l of poseAtoms) {
+          const dx=p.x-l.x, dy=p.y-l.y, dz=p.z-l.z;
+          if (dx*dx+dy*dy+dz*dz < 16) { site.set(p.chain+"|"+p.resi, p.res); break; }
+        }
+      }
+      const entries = Array.from(site.entries()).sort((a,b)=>a[0].split("|")[1]-b[0].split("|")[1]);
+      if (entries.length) {
+        $("#pocketPills").innerHTML = '<span class="muted small">Pocket (≤4 Å of pose):</span> ' +
+          entries.map(([k,res])=>{const [ch,ri]=k.split("|");return `<span class="pill"><b>${res}${ri}</b>${ch?("·"+ch):""}</span>`;}).join("");
+        v.addStyle({ or: entries.map(([k])=>{const [ch,ri]=k.split("|");return {chain:ch||undefined,resi:parseInt(ri,10)};}),
+                     het:false }, { stick:{radius:0.1,color:"#f6c445"} });
+      }
+      // heuristic H-bond lines: N/O/S within 3.5 A
+      const isPolar = a => /^(N|O|S)/i.test(a.elemGuess);
+      let nb = 0;
+      for (const l of poseAtoms) {
+        if (!isPolar(l)) continue;
+        for (const p of recAtoms) {
+          if (!isPolar(p)) continue;
+          const dx=p.x-l.x, dy=p.y-l.y, dz=p.z-l.z;
+          const d2 = dx*dx+dy*dy+dz*dz;
+          if (d2 < 12.25 && d2 > 1.0) {
+            v.addLine({ start:{x:l.x,y:l.y,z:l.z}, end:{x:p.x,y:p.y,z:p.z},
+                        dashed:true, color:"#f28b82", linewidth:2 });
+            nb++;
+            if (nb > 40) break;
+          }
+        }
+        if (nb > 40) break;
+      }
+      if (nb) $("#hbondNote").style.display = "block";
+    }
+    v.zoomTo();
+    v.render();
+    $$("#scoreTable tbody tr").forEach((tr, j) => {
+      tr.style.background = j === i ? "rgba(79,195,247,.15)" : "";
+    });
+  }
+
+  /* ---------- score table ---------- */
+  function renderTable(){
+    const tb = $("#scoreTable tbody");
+    tb.innerHTML = "";
+    state.poses.forEach((p, i) => {
+      const tr = document.createElement("tr");
+      tr.style.cursor = "pointer";
+      tr.innerHTML = `<td>${i+1}</td><td>${p.score !== null ? p.score.toFixed(1) : "—"}</td>
+        <td>${p.rms1 !== null ? p.rms1.toFixed(2) : "—"}</td><td>${p.rms2 !== null ? p.rms2.toFixed(2) : "—"}</td>
+        <td><button class="btn small" data-i="${i}">👁 show</button></td>`;
+      tr.addEventListener("click", () => renderPose(i));
+      tb.appendChild(tr);
+    });
+    $("#nPoses").textContent = state.poses.length;
+    $("#scorePanel").style.display = "block";
+  }
+  function wireCsv(){
+    $("#dlCsv").addEventListener("click", () => {
+      const rows = [["mode","score_kcal_mol","rmsd_lb","rmsd_ub"],
+        ...state.poses.map((p,i)=>[i+1,p.score,p.rms1,p.rms2])];
+      const csv = rows.map(r=>r.join(",")).join("\n");
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([csv], {type:"text/csv"}));
+      a.download = "scores.csv";
+      a.click();
+    });
+  }
+
+  /* ---------- file handling ---------- */
+  function readFiles(files, isReceptor){
+    Array.from(files).forEach(f => {
+      const r = new FileReader();
+      r.onload = () => {
+        const text = String(r.result);
+        const ext = (f.name.split(".").pop() || "").toLowerCase();
+        if (isReceptor) {
+          state.receptorText = text;
+        } else {
+          const newPoses = parsePoses(text, ext);
+          if (newPoses.length) state.poses = state.poses.concat(newPoses);
+        }
+        renderTable();
+        if (state.poses.length) renderPose(state.current < 0 ? 0 : state.current);
+      };
+      r.readAsText(f);
+    });
+  }
+  function wireDrop(id, inputId, isReceptor){
+    const zone = $("#"+id), input = $("#"+inputId);
+    zone.addEventListener("click", e => { if (e.target.tagName !== "BUTTON") input.click(); });
+    input.addEventListener("change", () => readFiles(input.files, isReceptor));
+    ["dragover","dragenter"].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.add("over"); }));
+    ["dragleave","drop"].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.remove("over"); }));
+    zone.addEventListener("drop", e => readFiles(e.dataTransfer.files, isReceptor));
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    wireDrop("dropPoses", "filePoses", false);
+    wireDrop("dropReceptor", "fileReceptor", true);
+    $("#browsePoses").addEventListener("click", () => $("#filePoses").click());
+    $("#fileReceptor").addEventListener("click", e => e.stopPropagation());
+    $("#btnBundledRec").addEventListener("click", async e => {
+      e.stopPropagation();
+      const r = await fetch("assets/1x71_receptor.pdb");
+      state.receptorText = await r.text();
+      if (state.poses.length) renderPose(state.current < 0 ? 0 : state.current);
+    });
+    wireCsv();
+  });
+})();
+</script>
+</body>
+</html>

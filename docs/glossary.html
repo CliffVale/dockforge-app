@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Glossary — DockForge</title>
+<meta name="description" content="Plain-English definitions of molecular docking terms: PDBQT, pose, grid box, RMSD, Kd, exhaustiveness and more.">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+</head>
+<body>
+
+<main class="wrap">
+  <h1>Glossary 🔤</h1>
+  <p class="muted">Every word your docking software throws at you, in one line each.
+  Type to filter; terms link to the lesson that covers them.</p>
+  <input id="gsearch" class="glosssearch" type="search" placeholder="Search terms… (try “pose” or “PDBQT”)">
+  <p class="small muted" id="gcount"></p>
+  <div id="glist"></div>
+</main>
+
+<footer class="footer"><div class="wrap">
+  <a href="index.html">DockForge</a> · <a href="course.html">course</a> ·
+  <a href="https://github.com/CliffVale/dockforge-app" target="_blank" rel="noopener">source (MIT)</a>
+</div></footer>
+
+<script src="assets/app.js"></script>
+<script>
+(function(){
+  "use strict";
+  const TERMS = [
+    ["Aptamer","A short single-stranded DNA/RNA molecule that folds into a shape which binds a specific target — a “chemical antibody”. (Our NA53 example targets the protein NGAL.)","lesson-2"],
+    ["ATOM / HETATM","The two PDB record types: ATOM lines list protein/nucleic-acid atoms; HETATM lines list ligands, ions, waters and other “non-standard” atoms.","lesson-2"],
+    ["Binding affinity","How tightly two molecules bind, measured experimentally as Kd (or Ki/IC50). Lower Kd = tighter binding. Docking only estimates it.","lesson-4"],
+    ["Binding pocket (site)","The cavity or groove on a protein where a ligand prefers to sit — defined by its shape and chemistry.","lesson-3"],
+    ["Blind docking","Docking with a grid box that encloses the whole protein, letting the search find any plausible site. Slower and noisier, but needs no prior site knowledge.","lesson-6"],
+    ["Co-crystal structure","A crystal structure solved with a ligand already bound inside the pocket — direct experimental evidence of where and how binding happens.","lesson-3"],
+    ["Conformer","One 3D shape a flexible molecule can adopt by rotating its bonds. Ligand prep generates sensible conformers before docking.","lesson-5"],
+    ["Cryo-EM","Cryogenic electron microscopy — an experimental method for solving large protein structures by imaging flash-frozen molecules.","lesson-2"],
+    ["Docking","A simulation that predicts the 3D pose(s) of a ligand in a protein binding site and scores how favorable each pose is.","lesson-1"],
+    ["Ensemble docking","Docking a ligand against several conformations of the same receptor (e.g. frames from an MD simulation) to mimic receptor flexibility.","lesson-1"],
+    ["Exhaustiveness","Vina’s dial for search effort (default 8). Higher = more thorough sampling of poses, at the cost of time. Use ≥32 for publication-ish results.","lesson-6"],
+    ["Force field","A mathematical recipe for molecular energies (bonds, angles, charges, van der Waals) used in simulations and some scoring functions.","lesson-4"],
+    ["Grid box","The 3D search region you define around (or across) the protein where docking poses are allowed to appear.","lesson-6"],
+    ["Hydrogen bond","A weak but crucial attraction between a donor (N–H/O–H) and an acceptor (N/O/S). Docking scores count these heavily — get protonation wrong and they all lie.","lesson-5"],
+    ["Hydrophobic effect","Greasy surfaces prefer to touch greasy surfaces (water pushes them together). A major driver of why ligands stick in oily pockets.","lesson-3"],
+    ["IC50","The inhibitor concentration that cuts an enzyme’s activity by 50%. A common (context-dependent) proxy for potency.","lesson-4"],
+    ["Induced fit","The mutual bending of ligand and pocket after they meet — real binding is a shape-shifting dance, not rigid lock-and-key.","lesson-1"],
+    ["Kd (dissociation constant)","The ligand concentration at which half the protein is occupied at equilibrium. Nanomolar = strong; micromolar = meh.","lesson-4"],
+    ["Ligand","The small(er) molecule being docked — a drug candidate, fragment, cofactor, nutrient… the “key” in the lock-and-key picture.","lesson-1"],
+    ["MD (molecular dynamics)","Simulating molecules move atom-by-atom over time (femtosecond steps). Used to refine structures, generate receptor ensembles, and validate docked poses.","lesson-1"],
+    ["mmCIF / PDB","The two main structure file formats. PDB is the classic text format; mmCIF is its modern successor that handles huge complexes and richer metadata.","lesson-2"],
+    ["Partial charge","The small ± charge an atom carries inside a molecule (never a whole ±1 unless it’s an ion). PDBQT files carry these; scoring uses them.","lesson-5"],
+    ["PDB","The Protein Data Bank: the worldwide archive of experimental 3D structures. Also shorthand for its classic file format. Entry codes look like 1X71.","lesson-2"],
+    ["PDBQT","PDB + partial Charges + atom Types — the format Vina actually reads. Ligand prep adds charges, types and rotatable-bond definitions; receptor prep adds charges/types to the protein.","lesson-5"],
+    ["Pose","One specific 3D placement (position + orientation + internal shape) of the ligand in the site. A docking run returns ranked poses (“modes”).","lesson-1"],
+    ["Protonation state","Which form of an ionizable group dominates at a given pH (amine +1 vs neutral; carboxyl −1 vs neutral). Prep decides this per atom — it changes every predicted interaction.","lesson-5"],
+    ["Receptor","The (usually bigger) protein you dock into — the “lock”. Kept rigid or semi-flexible during docking.","lesson-1"],
+    ["Redocking","Validation protocol: remove the crystal ligand, dock it back, and check the engine recovers its known position (RMSD < 2 Å = success).","lesson-7"],
+    ["RMSD","Root-mean-square deviation — the average atom-pair distance between two structures (e.g. two poses, or pose vs crystal). Lower = more similar.","lesson-7"],
+    ["Rotatable bond","A single bond the ligand can twist around. More rotatable bonds = bigger search space = harder docking (and usually weaker binding — see “.bad” drugs).","lesson-5"],
+    ["Scoring function","The formula estimating a pose’s favorability from contacts, H-bonds, charges, clashes and desolvation. Fast, approximate, and never a substitute for experiments.","lesson-4"],
+    ["SDF / MOL2","Common ligand file formats carrying atoms, bonds and properties (SDF can hold many molecules; MOL2 carries charges/types too).","lesson-5"],
+    ["SMILES","A one-line text description of a molecule’s atoms and bonds, e.g. caffeine: Cn1cnc2c1c(=O)n(C)c(=O)n2C. The lingua franca of chemical databases.","lesson-2"],
+    ["Side chain","The variable part of an amino acid that sticks off the backbone and gives each residue its personality (charge, size, grease). Side chains line binding pockets.","lesson-3"],
+    ["Tautomer","Alternative arrangements of H-atoms and double bonds in a molecule (e.g. keto ↔ enol). Prep picks the dominant one at physiological pH — the wrong tautomer misplaces H-bonds.","lesson-5"],
+    ["Virtual screening","Docking a whole library (thousands–millions) of ligands against one target to rank candidates for experiments.","lesson-4"],
+    ["Vina","AutoDock Vina — the open-source docking engine this site teaches (Apache-2.0). Fast, widely cited, reasonably accurate for a fast program.","lesson-4"],
+    ["Virtual screening (cont.)","Done well, it’s statistics + preparation + honest scoring; done badly, it’s a random-number generator with extra steps.","lesson-4"],
+    ["WebAssembly (WASM)","A way to run compiled code (like Vina, written in C++) inside a web browser at near-native speed. This is how Webina docks without a server.","lesson-6"],
+    ["Webina","AutoDock Vina compiled to WebAssembly by the Durrant Lab — runs entirely in your browser tab. The engine inside our Docking Lab.","lesson-6"],
+    ["X-ray crystallography","The classic structure-solving method: crystallize the protein, shoot it with X-rays, reconstruct electron density → atomic model.","lesson-2"]
+  ];
+  const glist = document.getElementById("glist");
+  const gcount = document.getElementById("gcount");
+  const gsearch = document.getElementById("gsearch");
+
+  function render(filter){
+    const f = (filter||"").trim().toLowerCase();
+    const rows = TERMS.filter(([t,d]) => !f || t.toLowerCase().includes(f) || d.toLowerCase().includes(f));
+    glist.innerHTML = rows.map(([t,d,ls]) =>
+      `<div class="gterm"><h3>${t} ${ls?`<a class="small" href="course.html#${ls}" title="covered in lesson">↗ lesson</a>`:""}</h3><p class="muted" style="margin:.2rem 0 0">${d}</p></div>`
+    ).join("") || `<p class="muted">No matches for “${f}”. Try fewer letters.</p>`;
+    gcount.textContent = `${rows.length} of ${TERMS.length} terms shown`;
+  }
+  gsearch.addEventListener("input", () => render(gsearch.value));
+  render("");
+})();
+</script>
+</body>
+</html>
