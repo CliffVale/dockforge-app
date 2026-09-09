@@ -20,7 +20,8 @@
     { href: "glossary.html", label: "Glossary", icon: "📖", group: "Start here" },
     { href: "lab.html", label: "Docking Lab", icon: "🧪", group: "Work" },
     { href: "preview.html", label: "Live Preview", icon: "👁", group: "Work" },
-    { href: "results.html", label: "Result Viewer", icon: "📊", group: "Work" }
+    { href: "results.html", label: "Result Viewer", icon: "📊", group: "Work" },
+    { href: "find.html", label: "Structure Finder", icon: "🔎", group: "Work" }
   ];
 
   function hereName() { return location.pathname.split("/").pop() || "index.html"; }
@@ -103,7 +104,8 @@
     "glossary.html": "Plain-English definitions of the docking vocabulary used across DockForge.",
     "lab.html": "Your guided docking bench: pick a kit, get the grid box, and run Webina in your browser.",
     "preview.html": "Drop any docking-related file — PDB, PDBQT, SDF, MOL2, mmCIF, AlphaFold models and more — for instant 3D preview.",
-    "results.html": "Inspect Vina poses, validate redocking against a reference, and export a lab-ready notebook."
+    "results.html": "Inspect Vina poses, validate redocking against a reference, and export a lab-ready notebook.",
+    "find.html": "Search the RCSB PDB by name or PDB ID, and PubChem by name, CID or SMILES — then copy the chosen structure straight to the lab or the viewer."
   };
 
   // ---------- command palette (⌘K) ----------

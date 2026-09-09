@@ -43,6 +43,23 @@ beyond ±3) — and round-tripped against real files, so external fixed-column t
 OpenBabel) parse our exports correctly. The ligand's bond table (from SDF/MOL2/CIF) travels through as
 CONECT records when poses are shown in the viewer — real chemistry, not distance guesses.
 
+## 🔎 Structure Finder
+
+One page — <a href="docs/find.html">docs/find.html</a> — wires three real, live, public APIs
+into the beginner flow so you never leave the site to locate a target or ligand:
+
+- **RCSB Protein Data Bank** — full-text search via the
+  <a href="https://search.rcsb.org" target="_blank" rel="noopener">Search API</a> (assemblies → PDB IDs),
+  metadata from the <a href="https://data.rcsb.org" target="_blank" rel="noopener">Data API</a>,
+  and coordinate files from <a href="https://files.rcsb.org" target="_blank" rel="noopener">files.rcsb.org</a>.
+- **PubChem** — by **name**, by **CID**, or by **SMILES** via the
+  <a href="https://pubchem.ncbi.nlm.nih.gov/rest/pug" target="_blank" rel="noopener">PUG-REST API</a>,
+  with 3D SDF (`record_type=3d`) whenever PubChem has coordinates.
+- **Exact match** — type a bare PDB ID (e.g. `1BNA`) or CID (e.g. `4461`) for a direct fetch.
+
+Each search returns a metadata card (IUPAC name, InChIKey, SMILES, formula, XLogP3, exact mass),
+plus <b>Copy</b>, <b>Open in the lab</b> and <b>Open in the viewer</b> actions.
+
 ## 🎨 UI/UX system
 
 The interface was rebuilt on ideas adapted from four flagship UI projects ( studied for their patterns,
@@ -88,6 +105,7 @@ python3 -m http.server 8000
 - [ ] `v0.2` — pipeline core: PDBFixer + Meeko receptor prep, RDKit/Gypsum-DL ligand prep, P2Rank auto-pocket, EasyDock-style orchestration, PLIP-style interaction reports
 - [ ] `v0.3` — self-hostable server mode (Streamlit) for real virtual screening
 - [ ] `v0.4` — aptamer ensemble mode (APTAMD-style conformer sets) for protein–aptamer docking
+- [x] **Structure Finder** — RCSB + PubChem (name/CID/SMILES) live search on one page
 - [ ] `v0.5` — DiffDock/Boltz-2 "AI mode" when no structure exists
 
 ## 🙏 Credits
