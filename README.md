@@ -14,10 +14,10 @@ AutoDock Vina engine (compiled to WebAssembly as **Webina**) runs docking entire
 | Section | What you get |
 |---|---|
 | 📖 **Course** (`docs/course.html`) | 7 lessons: docking basics → proteins & ligands → pockets → poses & scores → PDBQT prep → grid boxes → reading results. Checkpoint quizzes + local progress tracking. |
-| ⚗️ **Docking Lab** (`docs/lab.html`) | Example kits (NGAL/1X71 with crystal ligand + computed grid box; apo 1NGL), guided steps, and the embedded Webina app. |
+| ⚗️ **Docking Lab** (`docs/lab.html`) | Example kits (DNA dodecamer + netropsin, 121D, with computed grid box; apo 1BNA), a click-by-click Webina walkthrough, guided steps, and the embedded Webina app. |
 | 📊 **Result Viewer** (`docs/results.html`) | Drag-and-drop Webina output: pose table parsed from `REMARK VINA RESULT`, interactive 3D (3Dmol.js), pocket residues (≤4 Å rule), heuristic H-bond lines, CSV export. |
 | 🔤 **Glossary** (`docs/glossary.html`) | 40 jargon terms, searchable. |
-| 📁 `docs/assets/` | Bundled structures: 1X71/1NGL PDBs, receptor-only and ligand-only PDBs, PDBe binding-site snapshot. |
+| 📁 `docs/assets/` | Bundled structures: 121D/1BNA PDBs, DNA-receptor-only and netropsin-ligand-only PDBs, PDBe binding-site snapshot. |
 
 ## 🚀 Run it
 
@@ -39,7 +39,7 @@ python3 -m http.server 8000
   H-bond-capability perception, not full protonation), and no pose validation.
 - Research-grade automation (full prep → pocket prediction → docking → interaction reports) is the
   [project roadmap](#-roadmap); see `research/` notes in the upstream workspace and the analysis in this repo's `docs/`.
-- Example structures are from the [RCSB PDB](https://www.rcsb.org): 1X71 (NGAL + 2,3-dihydroxybenzamide) and 1NGL (apo-NGAL).
+- Example structures are from the [RCSB PDB](https://www.rcsb.org): 121D (DNA dodecamer + minor-groove drug netropsin) and 1BNA (B-DNA dodecamer).
 - **Health disclaimer:** docking scores are hypotheses, not medical guidance.
 
 ## 🗺 Roadmap
@@ -55,7 +55,7 @@ python3 -m http.server 8000
 - [Webina](https://github.com/durrantlab/webina) — J. D. Durrant Lab (Apache-2.0) — the in-browser Vina
 - [3Dmol.js](https://3dmol.org) — David Koes (BSD) — molecular graphics
 - [AutoDock Vina](https://vina.scripps.edu/) — Scripps Research (Apache-2.0)
-- RCSB PDB — structural data for 1X71 / 1NGL
+- RCSB PDB — structural data for 121D / 1BNA
 - PDBe API — binding-site annotations snapshot (`docs/data/`)
 - Inspired by the ecosystem survey in `research/2026-09-09-docking-automation-gui-tooling.md`
 

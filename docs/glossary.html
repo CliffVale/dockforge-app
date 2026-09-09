@@ -29,7 +29,7 @@
 (function(){
   "use strict";
   const TERMS = [
-    ["Aptamer","A short single-stranded DNA/RNA molecule that folds into a shape which binds a specific target — a “chemical antibody”. (Our NA53 example targets the protein NGAL.)","lesson-2"],
+    ["Aptamer","A short single-stranded DNA/RNA molecule that folds into a shape which binds a specific target — a “chemical antibody”. Aptamers can themselves be docking targets or ligands.","lesson-2"],
     ["ATOM / HETATM","The two PDB record types: ATOM lines list protein/nucleic-acid atoms; HETATM lines list ligands, ions, waters and other “non-standard” atoms.","lesson-2"],
     ["Binding affinity","How tightly two molecules bind, measured experimentally as Kd (or Ki/IC50). Lower Kd = tighter binding. Docking only estimates it.","lesson-4"],
     ["Binding pocket (site)","The cavity or groove on a protein where a ligand prefers to sit — defined by its shape and chemistry.","lesson-3"],
@@ -51,7 +51,7 @@
     ["MD (molecular dynamics)","Simulating molecules move atom-by-atom over time (femtosecond steps). Used to refine structures, generate receptor ensembles, and validate docked poses.","lesson-1"],
     ["mmCIF / PDB","The two main structure file formats. PDB is the classic text format; mmCIF is its modern successor that handles huge complexes and richer metadata.","lesson-2"],
     ["Partial charge","The small ± charge an atom carries inside a molecule (never a whole ±1 unless it’s an ion). PDBQT files carry these; scoring uses them.","lesson-5"],
-    ["PDB","The Protein Data Bank: the worldwide archive of experimental 3D structures. Also shorthand for its classic file format. Entry codes look like 1X71.","lesson-2"],
+    ["PDB","The Protein Data Bank: the worldwide archive of experimental 3D structures (proteins, DNA, RNA and their complexes). Also shorthand for its classic file format. Entry codes look like 1BNA.","lesson-2"],
     ["PDBQT","PDB + partial Charges + atom Types — the format Vina actually reads. Ligand prep adds charges, types and rotatable-bond definitions; receptor prep adds charges/types to the protein.","lesson-5"],
     ["Pose","One specific 3D placement (position + orientation + internal shape) of the ligand in the site. A docking run returns ranked poses (“modes”).","lesson-1"],
     ["Protonation state","Which form of an ionizable group dominates at a given pH (amine +1 vs neutral; carboxyl −1 vs neutral). Prep decides this per atom — it changes every predicted interaction.","lesson-5"],

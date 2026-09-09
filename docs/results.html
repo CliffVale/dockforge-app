@@ -25,7 +25,7 @@
     <div class="drag" id="dropReceptor">
       <b>Optional: drop the receptor here</b><br>
       <span class="small">.pdb (protein only, e.g. the kit's <span class="mono">*_receptor.pdb</span>)</span><br>
-      <button class="btn ghost small" style="margin-top:.5rem" id="btnBundledRec">Use bundled 1X71 receptor</button>
+      <button class="btn ghost small" style="margin-top:.5rem" id="btnBundledRec">Use bundled 121D DNA receptor</button>
       <input type="file" id="fileReceptor" accept=".pdb,.txt" style="display:none">
     </div>
   </div>
@@ -273,7 +273,7 @@
     $("#fileReceptor").addEventListener("click", e => e.stopPropagation());
     $("#btnBundledRec").addEventListener("click", async e => {
       e.stopPropagation();
-      const r = await fetch("assets/1x71_receptor.pdb");
+      const r = await fetch("assets/121d_receptor.pdb");
       state.receptorText = await r.text();
       if (state.poses.length) renderPose(state.current < 0 ? 0 : state.current);
     });

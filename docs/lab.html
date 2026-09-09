@@ -12,13 +12,40 @@
   ol.steps>li{counter-increment:step;position:relative;padding:.35rem 0 .35rem 2.6rem;margin:.5rem 0}
   ol.steps>li::before{content:counter(step);position:absolute;left:0;top:.3rem;width:1.7rem;height:1.7rem;border-radius:50%;
     background:var(--accent);color:#08111d;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:.9rem}
+
+  /* --- Webina UI schematic (walkthrough) --- */
+  .wmock{background:#f4f6fa;border:2px solid #37506e;border-radius:12px;overflow:hidden;color:#1d2733;max-width:760px;margin:1rem auto}
+  .wmock .wtitle{background:#37506e;color:#fff;font-weight:700;font-size:.85rem;padding:.45rem .8rem}
+  .wmock .wtabs{display:flex;gap:2px;background:#dbe2ec;padding:.4rem .5rem 0;flex-wrap:wrap}
+  .wmock .wtab{font-size:.8rem;font-weight:700;padding:.4rem .8rem;border-radius:8px 8px 0 0;background:#c3cddb;color:#33465e}
+  .wmock .wtab.on{background:#fff;color:#0e47a1;box-shadow:0 -2px 0 #0e47a1 inset}
+  .wmock .wbody{padding:.8rem;display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+  @media (max-width:640px){.wmock .wbody{grid-template-columns:1fr}}
+  .wmock .wsec{background:#fff;border:1px solid #c3cddb;border-radius:8px;padding:.55rem .7rem;position:relative}
+  .wmock .wsec h5{margin:0 0 .35rem;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:#5a6b80}
+  .wmock .wfield{display:flex;gap:.35rem;margin:.25rem 0}
+  .wmock .wfield span{font-size:.72rem;font-weight:700;color:#33465e;width:5.2rem;padding-top:.3rem}
+  .wmock .win{flex:1;background:#eef2f7;border:1px solid #c3cddb;border-radius:5px;height:1.5rem;font-size:.72rem;
+    display:flex;align-items:center;padding:0 .4rem;color:#6a7a8e;font-family:ui-monospace,Menlo,Consolas,monospace;overflow:hidden;white-space:nowrap}
+  .wmock .wbtnrow{display:flex;gap:.4rem;margin:.3rem 0}
+  .wmock .wbtn{font-size:.72rem;font-weight:700;padding:.3rem .6rem;border-radius:6px;background:#e3e9f1;color:#33465e;border:1px solid #c3cddb}
+  .wmock .wbtn.primary{background:#0e47a1;color:#fff;border-color:#0e47a1}
+  .wmock .wspan{grid-column:1/-1}
+  .wbadge{position:absolute;top:-.65rem;left:-.65rem;width:1.5rem;height:1.5rem;border-radius:50%;
+    background:var(--warn);color:#3a2c00;font-weight:800;font-size:.85rem;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 0 0 2px var(--bg);z-index:2}
+  ol.tour{list-style:none;padding:0;counter-reset:tour}
+  ol.tour>li{position:relative;padding:.45rem 0 .45rem 2.6rem;margin:.4rem 0}
+  ol.tour>li::before{counter-increment:tour;content:counter(tour);position:absolute;left:0;top:.45rem;width:1.7rem;height:1.7rem;border-radius:50%;
+    background:var(--warn);color:#3a2c00;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:.9rem}
+  ol.tour .uik{font-weight:700;color:#7cd0ff}
 </style>
 </head>
 <body>
 
 <main class="wrap">
   <h1>Docking Lab ⚗️</h1>
-  <p class="lead muted">Dock a real ligand into a real protein using <b>AutoDock Vina</b> — compiled to your browser as
+  <p class="lead muted">Dock a real ligand into a real target using <b>AutoDock Vina</b> — compiled to your browser as
   <a href="https://durrantlab.pitt.edu/webina/" target="_blank" rel="noopener">Webina</a>. Nothing is uploaded anywhere;
   your CPU does the science.</p>
 
@@ -29,11 +56,11 @@
 
   <h2>Step 1 · Get your example files</h2>
   <div class="panel">
-    <p>Each “example kit” = <b>receptor</b> (the protein, ready for docking) + <b>ligand</b> (a molecule that really binds it,
+    <p>Each “example kit” = <b>receptor</b> (the target, ready for docking) + <b>ligand</b> (a molecule that really binds it,
     taken from the crystal structure) + <b>recommended grid-box numbers</b> from that ligand’s pocket.</p>
     <div class="row" id="kitButtons">
-      <button class="btn kit" data-pdb="1x71">🧪 NGAL + 2,3-dihydroxybenzamide (1X71) — the guided one</button>
-      <button class="btn ghost kit" data-pdb="1ngl">🧪 NGAL, apo (1NGL) — for your own ligand ideas</button>
+      <button class="btn kit" data-pdb="121d">🧬 DNA + netropsin (121D) — the guided one</button>
+      <button class="btn ghost kit" data-pdb="1bna">🧬 DNA, apo (1BNA) — for your own ligand ideas</button>
     </div>
     <div id="kitBox" style="display:none;margin-top:1rem">
       <div class="row spread">
@@ -52,10 +79,10 @@
           <tr><td>Modes / num_modes</td><td class="mono">9 <span class="muted">(default)</span></td></tr>
         </tbody>
       </table>
-      <p class="small muted">Box numbers were computed from the co-crystallized ligand’s position (pocket padded by ~8–12 Å) —
-      lesson 6 explains why. The crystal actually shows two fragment copies of this ligand in the pocket; the kit uses one
-      copy, and the box comfortably covers both. For 1NGL (no ligand inside) you’ll pick your own box: try centering on the
-      same cavity (the calyx) or run blind docking.</p>
+      <p class="small muted">Box numbers were computed from the co-crystallized drug’s position (pocket padded by ~8–12 Å) —
+      lesson 6 explains why. Netropsin sits in the minor groove; PDBe’s SITE annotation marks the contact bases
+      (DA6–DT7, DA–T8, DT9–DG10 region), so you can check your result against experiment. For 1BNA (naked B-DNA, no ligand
+      inside) you’ll pick your own box — or run blind docking across the whole helix.</p>
     </div>
   </div>
 
@@ -67,10 +94,66 @@
         you downloaded above (Webina converts them to PDBQT for you).</li>
       <li>Enter the <b>Grid box center and size</b> from the table above (or keep the default box for the dry run).</li>
       <li>Set <b>Exhaustiveness = 8</b> for your first run.</li>
-      <li>Press <b>“Start Docking”</b> and wait — the NGAL example typically takes a couple of minutes on a laptop.</li>
+      <li>Press <b>“Start Docking”</b> and wait — the DNA example typically takes a couple of minutes on a laptop.</li>
       <li>When it finishes, download the <b>output PDBQT</b> (poses) and the results table, then open the
         <a href="results.html">Result Viewer</a> and drag the files in to see where the ligand wants to live. 🎉</li>
     </ol>
+  </div>
+
+  <h2>Step 2½ · Click-by-click walkthrough</h2>
+  <div class="panel">
+    <p class="muted small" style="margin-top:0">This schematic mirrors the real Webina interface (labels match the actual app).
+    Match the numbered badges to the tour below — the numbers appear exactly where you click.</p>
+    <div class="wmock" role="img" aria-label="Annotated schematic of the Webina interface with numbered hotspots">
+      <div class="wtitle">Webina 1.0.5 — AutoDock Vina Ported to WebAssembly</div>
+      <div class="wtabs">
+        <span class="wtab on"><span class="wbadge" style="position:static;display:inline-flex;margin-right:.35rem">1</span>Input Parameters</span>
+        <span class="wtab">Running Webina</span>
+        <span class="wtab">Output</span>
+        <span class="wtab" style="opacity:.55">Start Over</span>
+      </div>
+      <div class="wbody">
+        <div class="wsec">
+          <span class="wbadge">2</span>
+          <h5>Input (PDBQT) Files</h5>
+          <div class="wbtnrow"><span class="wbtn">Choose receptor file…</span><span class="win">121d_receptor.pdb ✓</span></div>
+          <div class="wbtnrow"><span class="wbtn">Choose ligand file…</span><span class="win">netropsin_ligand.pdb ✓</span></div>
+        </div>
+        <div class="wsec">
+          <span class="wbadge">5</span>
+          <h5>Advanced Parameters</h5>
+          <div class="wfield"><span>Exhaustiveness</span><span class="win">8</span></div>
+          <div class="wfield"><span>CPU(s)</span><span class="win">auto</span></div>
+        </div>
+        <div class="wsec">
+          <span class="wbadge">3</span>
+          <h5>Docking Box</h5>
+          <div class="wfield"><span>Box Center</span><span class="win">10.8&nbsp; 22.6&nbsp; 72.7</span></div>
+          <span class="wbadge" style="top:auto;bottom:-.65rem">4</span>
+          <div class="wfield"><span>Box Size</span><span class="win">16.6&nbsp; 17.3&nbsp; 26.7</span></div>
+        </div>
+        <div class="wsec" style="display:flex;align-items:center;justify-content:center">
+          <span class="wbtn primary" style="font-size:.85rem;padding:.45rem 1.1rem">Start Docking&nbsp; ▶</span>
+          <span class="wbadge" style="top:-.65rem;left:auto;right:-.65rem">6</span>
+        </div>
+      </div>
+    </div>
+    <ol class="tour">
+      <li>The app opens on the <span class="uik">Input Parameters</span> tab — nothing to do here yet.</li>
+      <li>Under <span class="uik">Input (PDBQT) Files</span>, choose the two files from Step 1:
+        <span class="mono">121d_receptor.pdb</span> as the receptor and <span class="mono">netropsin_ligand.pdb</span> as the ligand.
+        Webina will offer to convert them to PDBQT — accept. (Or click <em>“Use Example Files”</em> for a quick dry run.)</li>
+      <li>Scroll to <span class="uik">Docking Box → Box Center</span> and type the kit numbers: <span class="mono">10.8, 22.6, 72.7</span>.</li>
+      <li><span class="uik">Box Size</span>: <span class="mono">16.6, 17.3, 26.7</span>. (Lesson 6 explains what these mean.)</li>
+      <li>Under <span class="uik">Advanced Parameters</span>, set <span class="uik">Exhaustiveness</span> to <b>8</b> for your first run
+        (32 when you want publishable-ish sampling).</li>
+      <li>Press <span class="uik">Start Docking</span>. The <span class="uik">Running Webina</span> tab shows live progress —
+        the DNA example typically finishes in a couple of minutes on a laptop.</li>
+      <li>When the <span class="uik">Output</span> tab appears, download the <b>Output PDBQT File</b> and drag it into the
+        <a href="results.html">Result Viewer</a> to see the poses in 3D. 🎉</li>
+    </ol>
+    <p class="small muted">If the live app below ever changes its layout slightly, the numbered parts (tabs, sections, buttons)
+    are what matter — they’ve been stable for years.</p>
   </div>
 
   <h2>Step 3 · Run it (embedded Webina)</h2>
@@ -85,12 +168,12 @@
     <div class="row spread">
       <div class="row">
         <select id="pdbPick">
-          <option value="1x71">1X71 — NGAL + 2,3-dihydroxybenzamide</option>
-          <option value="1ngl">1NGL — NGAL (apo)</option>
+          <option value="121d">121D — DNA dodecamer + netropsin</option>
+          <option value="1bna">1BNA — B-DNA dodecamer (apo)</option>
         </select>
         <button class="btn small" id="reloadPdb">Load structure</button>
       </div>
-      <span class="small muted">Pocket = protein residues with any atom within 4 Å of the ligand (client-side calculation).</span>
+      <span class="small muted">Pocket = target residues with any atom within 4 Å of the ligand (client-side calculation).</span>
     </div>
     <div class="viewer" id="glviewer"><div class="vhint">Loading 3D viewer…</div></div>
     <div id="pocketPills" class="row" style="margin-top:.6rem"></div>
@@ -113,23 +196,23 @@
 
   /* ---------------- example kits ---------------- */
   const KITS = {
-    "1x71": {
-      receptor: "assets/1x71_receptor.pdb",
-      ligand:   "assets/db1_ligand.pdb",
-      receptorName: "1x71_receptor.pdb",
-      ligandName:   "db1_ligand.pdb",
-      center: "29.5, 78.1, 64.8",
-      size:   "15.1, 17.4, 14.8",
-      tag: "NGAL (lipocalin-2) + 2,3-dihydroxybenzamide — crystal-ligand fragment, 11 atoms"
+    "121d": {
+      receptor: "assets/121d_receptor.pdb",
+      ligand:   "assets/netropsin_ligand.pdb",
+      receptorName: "121d_receptor.pdb",
+      ligandName:   "netropsin_ligand.pdb",
+      center: "10.8, 22.6, 72.7",
+      size:   "16.6, 17.3, 26.7",
+      tag: "DNA dodecamer + netropsin — minor-groove drug, 31 atoms"
     },
-    "1ngl": {
-      receptor: "assets/1ngl.pdb",
+    "1bna": {
+      receptor: "assets/1bna.pdb",
       ligand:   null,
-      receptorName: "1ngl.pdb",
+      receptorName: "1bna.pdb",
       ligandName:   null,
       center: "— choose your own (try blind docking)",
-      size:   "— or reuse the 1X71 pocket box",
-      tag: "NGAL without ligand — bring your own molecule (SDF/MOL2/PDB)"
+      size:   "— or reuse the 121D groove box",
+      tag: "B-DNA dodecamer without ligand — bring your own molecule (SDF/MOL2/PDB)"
     }
   };
 
@@ -236,7 +319,7 @@
   }
   function wireViewer(){
     $("#reloadPdb").addEventListener("click", () => loadViewer($("#pdbPick").value));
-    if (window.$3Dmol) loadViewer("1x71");
+    if (window.$3Dmol) loadViewer("121d");
     else $("#glviewer").innerHTML = '<div class="vhint">3D viewer could not load (offline?).</div>';
   }
 

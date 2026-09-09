@@ -52,14 +52,15 @@
     <p>To dock, you need a 3D structure of both players, usually as a <b>PDB file</b> — a plain-text list of every atom
     with x/y/z coordinates. Protein structures come mainly from X-ray crystallography, cryo-EM or NMR experiments, and are
     shared in the <a href="https://www.rcsb.org" target="_blank" rel="noopener">RCSB Protein Data Bank</a> (230,000+ entries,
-    each with a 4-character code like <span class="mono">1X71</span>). If no structure exists, computers can predict one —
+    each with a 4-character code like <span class="mono">1BNA</span>). If no structure exists, computers can predict one —
     that’s what AlphaFold made famous.</p>
     <p>Ligands are small molecules: a drug candidate, a nutrient, a fragment. You can describe them compactly as a
     <b>SMILES</b> string — e.g. caffeine is
     <span class="mono">Cn1cnc2c1c(=O)n(C)c(=O)n2C</span> — which software converts to 3D. In a PDB file, protein atoms live
     in <span class="mono">ATOM</span> records and ligand atoms in <span class="mono">HETATM</span> records. Before docking,
     structures are “prepared”: incomplete side chains fixed, hydrogens added, waters usually removed (except the odd one
-    that matters!).</p>
+    that matters!). And targets aren’t only proteins — <b>DNA is a docking target too</b>: many antibiotics and cancer
+    drugs work by slotting into DNA’s minor groove, which is exactly the example you’ll dock in the Lab.</p>
     <div class="quiz" data-id="quiz-2a">
       <p class="q">A PDB file is…</p>
       <label><input type="radio" name="q2a"> a compressed image of the protein</label>
@@ -83,7 +84,7 @@
     molecules happy to sit there. Hydrophobic pockets hug greasy groups; charged pockets welcome oppositely charged
     parts; deep narrow clefts grip long skinny molecules.</p>
     <p>How do you find the pocket? Three ways: (1) <b>co-crystal evidence</b> — if the crystallographers captured a ligand
-    inside, you already know where it binds (this is what our NGAL example uses); (2) <b>geometry software</b> — tools like
+    inside, you already know where it binds (this is what our DNA example uses); (2) <b>geometry software</b> — tools like
     P2Rank scan the surface for enclosed cavities and rank their “druggability”; (3) <b>knowledge</b> — a conserved active
     site (e.g. a kinase hinge) tells you where to look. Docking into the <em>wrong</em> pocket is one of the most common
     beginner mistakes — the best score in a meaningless pocket is still meaningless.</p>
@@ -212,7 +213,7 @@
   </section>
 
   <div class="panel">
-    🏁 <b>Finished the course?</b> Head to the <a href="lab.html">Docking Lab</a> and run the NGAL example with your new
+    🏁 <b>Finished the course?</b> Head to the <a href="lab.html">Docking Lab</a> and run the DNA example with your new
     eyes — then graduate to the <a href="results.html">Result Viewer</a>.
   </div>
 </main>
