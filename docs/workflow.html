@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>All-in-One Docking Workflow — DockForge</title>
+<meta name="description" content="One plain-English page that explains how to go from “I have a protein and a molecule” to a browser docking run with DockForge — and exactly what the app does and does not do.">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<main class="wrap"></main>
+
+<script src="assets/app.js"></script>
+<script>
+(function () {
+  "use strict";
+  const $ = DF.$, esc = DF.esc;
+  const main = $("main.wrap");
+  if (!main) return;
+
+  main.innerHTML = `
+    <div class="page-head">
+      <div class="breadcrumb"><a href="index.html">Home</a><span class="sep">/</span>Workflow</div>
+      <h1>🧭 All-in-one docking workflow</h1>
+      <p class="desc">A single plain-English page for how DockForge is meant to be used: load a target, load a molecule, set up the docking, run it, look at the result, and know what the app can and cannot do for you.</p>
+    </div>
+
+    <div class="layout" style="grid-template-columns:220px minmax(0,1fr);gap:1.4rem;padding-top:.6rem">
+      <aside class="sidebar">
+        <div class="group">Start here</div>
+        <a class="side-link" href="index.html">🏠 Home</a>
+        <a class="side-link" href="course.html">🎓 Course</a>
+        <a class="side-link" href="glossary.html">📖 Glossary</a>
+        <div class="group">Do it</div>
+        <a class="side-link" href="lab.html">🧪 Docking Lab</a>
+        <a class="side-link" href="workflow.html">🧭 All-in-one workflow</a>
+        <div class="group">Inspect</div>
+        <a class="side-link" href="preview.html">👁 Live Preview</a>
+        <a class="side-link" href="results.html">📊 Result Viewer</a>
+        <a class="side-link" href="tester.html">🧪 Format Tester</a>
+        <div class="group">Find</div>
+        <a class="side-link" href="find.html">🔎 Structure Finder</a>
+        <div class="group">Reference</div>
+        <a class="side-link" href="resources.html">📚 Resources</a>
+        <div class="group" style="margin-top:1.2rem">Local / offline</div>
+        <div class="muted" style="font-size:.82rem">
+          This app is static. Clone the repo, open <code>docs/index.html</code>, and it runs
+          entirely in the browser. No server needed.
+        </div>
+      </aside>
+
+      <div class="content">
+
+        <h2>What this app is</h2>
+        <div class="card" style="margin:.6rem 0">
+          <p>DockForge is a <b>browser-based docking helper</b>. It is designed to make the
+          common pieces of a docking project easier to see and do:</p>
+          <ul class="muted" style="list-style:none;padding:.2rem 0 0 1rem;line-height:1.7">
+            <li>load a protein structure or small molecule from a file,</li>
+            <li>or find one from RCSB PDB or PubChem,</li>
+            <li>view the structure in 3D,</li>
+            <li>convert between file formats,</li>
+            <li>and run a Vina-style docking in the browser through Webina.</li>
+          </ul>
+        </div>
+
+        <h2>What “all-in-one” means here</h2>
+        <div class="card" style="margin:.6rem 0">
+          <p>“All-in-one” means the app tries to keep the whole beginner workflow in one place,
+          not that it automatically solves every step perfectly for every case. The realistic
+          all-in-one flow is:</p>
+          <ol class="muted" style="padding:.2rem 0 0 1rem;line-height:1.7">
+            <li>Pick or load a target.</li>
+            <li>Pick or load a ligand.</li>
+            <li>Set the docking box.</li>
+            <li>Run the docking.</li>
+            <li>Look at the poses and scores.</li>
+            <li>Save and inspect the result.</li>
+          </ol>
+        </div>
+
+        <h2 id="step-by-step">Step by step</h2>
+
+        <h3>1 · Get a target</h3>
+        <div class="card" style="margin:.6rem 0">
+          <p>You have two main ways to get a protein or nucleic-acid structure:</p>
+          <ul class="muted" style="list-style:none;padding:.2rem 0 0 1rem;line-height:1.7">
+            <li><b>Load a file from your computer.</b> PDB, PDBQT, CIF/mmCIF, and a few other formats are supported.</li>
+            <li><b>Search and fetch one online.</b> Use the <a href="find.html">Structure Finder</a> to look up structures from RCSB PDB by name or PDB ID, and small molecules from PubChem by name, CID, or SMILES.</li>
+          </ul>
+          <p class="muted">Plain-English check: the target is usually the big thing — a protein, or sometimes DNA/RNA — that you want the small molecule to bind to.</p>
+        </div>
+
+        <h3>2 · Get a ligand</h3>
+        <div class="card" style="margin:.6rem 0">
+          <p>The ligand is usually the small molecule you want to dock.</p>
+          <ul class="muted" style="list-style:none;padding:.2rem 0 0 1rem;line-height:1.7">
+            <li>Load it from a file on your computer, or</li>
+            <li>search for it in PubChem through the Structure Finder.</li>
+          </ul>
+          <p class="muted">Plain-English check: if you already know the molecule name, CID, or SMILES, the Structure Finder is the easiest route.</p>
+        </div>
+
+        <h3>3 · Look before you dock</h3>
+        <div class="card" style="margin:.6rem 0">
+          <p>Before docking, it helps to look at what you actually loaded.</p>
+          <ul class="muted" style="list-style:none;padding:.2rem 0 0 1rem;line-height:1.7">
+            <li>Open the file in <a href="preview.html">Live Preview</a> to see the 3D shape.</li>
+            <li>Use it to inspect whether what you loaded is the thing you expected.</li>
+          </ul>
+          <p class="muted">This is the step where many beginner problems are caught early: wrong file, wrong molecule, unexpected water, wrong chain, or a structure that has nothing where you thought it did.</p>
+        </div>
+
+        <h3>4 · Decide what you are docking</h3>
+        <div class="card" style="margin:.6rem 0">
+          <p>A structure often contains more than you want to dock.</p>
+          <ul class="muted" style="list-style:none;padding:.2rem 0 0 1rem;line-height:1.7">
+            <li>Which chain or chains matter?</li>
+            <li>Do you want the co-crystallized ligand, a drug candidate, or both?</li>
+            <li>Are waters, ions, or other small molecules helping or just adding noise?</li>
+          </ul>
+          <p class="muted">The app can show you the structure and the ligand, but the decision about what counts as “the binding site” is still a scientific choice.</p>
+        </div>
+
+        <h3>5 · Set the docking box</h3>
+        <div class="card" style="margin:.6rem 0">
+          <p>Most docking needs a box that says “search here.”</p>
+          <ul class="muted" style="list-style:none;padding:.2rem 0 0 1rem;line-height:1.7">
+            <li>In many workflows, you place the box around the binding site.</li>
+            <li>If you already have a known ligand position, that location is a common starting point for the box.</li>
+          </ul>
+          <p class="muted">The box matters a lot. Too small and the ligand cannot fit; too big and the search becomes less focused.</p>
+        </div>
+
+        <h3>6 · Run the docking</h3>
+        <div class="card" style="margin:.6rem 0">
+          <p>Run the browser-based docking in the <a href="lab.html">Docking Lab</a>.</p>
+          <ul class="muted" style="list-style:none;padding:.2rem 0 0 1rem;line-height:1.7">
+            <li>The app uses Webina, a browser version of Vina.</li>
+            <li>You get predicted poses and scores.</li>
+          </ul>
+          <p class="muted">Plain-English check: a docking run gives you candidate binding poses ranked by a score. It is a prediction, not an experiment.</p>
+        </div>
+
+        <h3>7 · Look at the result</h3>
+        <div class="card" style="margin:.6rem 0">
+          <p>Open the output in the <a href="results.html">Result Viewer</a>.</p>
+          <ul class="muted" style="list-style:none;padding:.2rem 0 0 1rem;line-height:1.7">
+            <li>See the poses.</li>
+            <li>Check the scores.</li>
+            <li>Compare poses to a reference if you have one.</li>
+            <li>Look at interaction views if they are useful to you.</li>
+          </ul>
+          <p class="muted">A good result is one you can explain: does the pose make chemical sense? Does the score match your expectations for this kind of ligand?</p>
+        </div>
+
+        <h3>8 · Save and re-use</h3>
+        <div class="card" style="margin:.6rem 0">
+          <p>When you have something worth keeping:</p>
+          <ul class="muted" style="list-style:none;padding:.2rem 0 0 1rem;line-height:1.7">
+            <li>Save the pose and scores.</li>
+            <li>Convert the result to a format you need.</li>
+            <li>Use the Format Tester if you want to check that the file reads back the way you expect.</li>
+            <li>Export a notebook or keep the file for later.</li>
+          </ul>
+        </div>
+
+        <h2>What this app does well</h2>
+        <div class="card" style="margin:.6rem 0">
+          <ul class="muted" style="list-style:none;padding:.2rem 0 0 1rem;line-height:1.7">
+            <li>It keeps the beginner workflow in one browser app.</li>
+            <li>It can load many structure and molecule formats.</li>
+            <li>It can visualize structures in 3D.</li>
+            <li>It can run a Vina-style dock in the browser.</li>
+            <li>It can convert files and let you check them.</li>
+            <li>It can fetch public structures and molecules so you are not stuck at “I do not have a file.”</li>
+          </ul>
+        </div>
+
+        <h2>What this app does not magically do</h2>
+        <div class="card" style="margin:.6rem 0">
+          <p class="muted">A docking result is only as good as the workflow behind it. This app does
+          <b>not</b> automatically and perfectly do everything a full research pipeline might need:</p>
+          <ul class="muted" style="list-style:none;padding:.2rem 0 0 1rem;line-height:1.7">
+            <li>It does not always know which protons to add or which protonation state is right.</li>
+            <li>It does not always know which waters, ions, chains, or conformations to keep.</li>
+            <li>It does not always know the best box for your exact scientific question.</li>
+            <li>It does not replace careful validation against a known binder or benchmark.</li>
+            <li>It does not make the score a measured fact.</li>
+            <li>It does not guarantee a publication-ready result by itself.</li>
+          </ul>
+          <p class="muted">That is not a weakness of the app so much as a property of docking:
+          the math can be exact, but the scientific outcome still depends on the choices you make.</p>
+        </div>
+
+        <h2>A plain-English “is this ready?” checklist</h2>
+        <div class="card" style="margin:.6rem 0">
+          <p class="muted">If you want to use a result beyond learning, ask these questions:</p>
+          <ul class="muted" style="list-style:none;padding:.2rem 0 0 1rem;line-height:1.7">
+            <li>Did I load the right structure?</li>
+            <li>Did I load the right ligand?</li>
+            <li>Is the binding site where I think it is?</li>
+            <li>Is the box reasonable?</li>
+            <li>Do the poses look chemically sensible?</li>
+            <li>Do I have a reference or known binder to compare against?</li>
+            <li>Have I written down what I did, so someone else could repeat it?</li>
+          </ul>
+        </div>
+
+        <h2>Use it offline from a clone</h2>
+        <div class="card" style="margin:.6rem 0">
+          <p>This app is static. That means it runs from files, not a server.</p>
+          <p class="muted" style="font-size:.88rem">To use it on your own machine:</p>
+          <ol class="muted" style="padding:.2rem 0 0 1rem;line-height:1.7">
+            <li>clone the repo,</li>
+            <li>open <code>docs/index.html</code> in a browser,</li>
+            <li>and use it from there.</li>
+          </ol>
+          <p class="muted">If you want it completely offline, you can still open it from disk after the first load. Some optional lookups, like fetching a structure or small molecule online, will need an internet connection at the moment you use them.</p>
+          <p class="muted">Markdown version of these same instructions lives in <code>README.md</code> in the repo.</p>
+        </div>
+
+        <h2>Still a beginner?</h2>
+        <div class="card" style="margin:.6rem 0">
+          <p>If the whole thing still feels like a lot, start here:</p>
+          <ol class="muted" style="padding:.2rem 0 0 1rem;line-height:1.7">
+            <li>open the <a href="index.html">Home</a> page,</li>
+            <li>try the <a href="course.html">Course</a>,</li>
+            <li>then come back to this workflow page when you want the plain-English version of the whole process.</li>
+          </ol>
+        </div>
+
+      </div>
+    </div>
+  `;
+})();
+</script>
+</body>
+</html>

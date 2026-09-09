@@ -87,6 +87,21 @@ cd dockforge-app/docs
 python3 -m http.server 8000
 # open http://localhost:8000
 ```
+
+This is a fully static, browser-based app. It runs from files, not a backend server.
+For the plain-English end-to-end flow, see the <a href="docs/workflow.html">All-in-one docking workflow</a>.
+
+**Pages:**
+- <a href="docs/index.html">Home</a>
+- <a href="docs/course.html">Course</a>
+- <a href="docs/glossary.html">Glossary</a>
+- <a href="docs/lab.html">Docking Lab</a>
+- <a href="docs/workflow.html">All-in-one workflow</a>
+- <a href="docs/preview.html">Live Preview</a>
+- <a href="docs/results.html">Result Viewer</a>
+- <a href="docs/tester.html">Format Tester</a>
+- <a href="docs/find.html">Structure Finder</a>
+- <a href="docs/resources.html">Resources</a>
 (For the embedded Webina frame, serve over http://localhost — Webina itself needs no build step.)
 
 ## 🧪 The science, honestly

@@ -23,7 +23,8 @@
     { href: "results.html", label: "Result Viewer", icon: "📊", group: "Work" },
     { href: "find.html", label: "Structure Finder", icon: "🔎", group: "Work" },
     { href: "tester.html", label: "Format Tester", icon: "🧪", group: "Work" },
-    { href: "resources.html", label: "Resources", icon: "📚", group: "Reference" }
+    { href: "resources.html", label: "Resources", icon: "📚", group: "Reference" },
+    { href: "workflow.html", label: "All-in-one workflow", icon: "🧭", group: "How-to" }
   ];
 
   function hereName() { return location.pathname.split("/").pop() || "index.html"; }
@@ -109,7 +110,8 @@
     "results.html": "Inspect Vina poses, validate redocking against a reference, and export a lab-ready notebook.",
     "find.html": "Search the RCSB PDB by name or PDB ID, and PubChem by name, CID or SMILES — then copy the chosen structure straight to the lab or the viewer.",
     "tester.html": "Drop any structure file and see it parsed, converted to other formats, and validated — with a pass/fail table so you can trust the result yourself.",
-    "resources.html": "Curated links to the official docs and data sources behind DockForge: structure databases, file-format specs, visualization tools, and the docking tools we interoperate with."
+    "resources.html": "Curated links to the official docs and data sources behind DockForge: structure databases, file-format specs, visualization tools, and the docking tools we interoperate with.",
+    "workflow.html": "One plain-English page for how to go from a protein and a molecule to a browser docking run — and exactly what DockForge does and does not do."
   };
 
   // ---------- command palette (⌘K) ----------
