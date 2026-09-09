@@ -19,7 +19,7 @@ AutoDock Vina engine (compiled to WebAssembly as **Webina**) runs docking entire
 | 📊 **Result Viewer** (`docs/results.html`) | Drag-and-drop Webina output: pose table parsed from `REMARK VINA RESULT`, interactive 3D (3Dmol.js), pocket residues (≤4 Å rule), heuristic H-bond lines, CSV export. |
 | 🔤 **Glossary** (`docs/glossary.html`) | 40 jargon terms, searchable. |
 | 📁 `docs/assets/` | Bundled structures: 121D/1BNA PDBs, DNA-receptor-only and netropsin-ligand-only PDBs, PDBe binding-site snapshot, plus preview samples (AlphaFold P69905, apixaban PDBQT, MOL2, netropsin SDF). |
-| 🧪 `tests/` | 45-test Node suite (`node --test tests/tools.spec.mjs tests/formats.spec.mjs`) validating every reader/writer against **real fixture files** (provenance in `tests/fixtures/PROVENANCE.md`): RCSB mmCIF + ligand CIF, PubChem SDF, Webina benchmark PDBQTs, AlphaFold DB model, OpenBabel MOL2, plus spec-derived GRO/CRD/GPF/DPF/Vina-config/HDOCK fixtures. |
+| 🧪 `tests/` | 51-test Node suite (`node --test tests/tools.spec.mjs tests/formats.spec.mjs`) validating every reader/writer against **real fixture files** (provenance in `tests/fixtures/PROVENANCE.md`): RCSB mmCIF + ligand CIF, PubChem SDF, Webina benchmark PDBQTs, AlphaFold DB model, OpenBabel MOL2, plus spec-derived GRO/CRD/GPF/DPF/Vina-config/HDOCK fixtures. |
 
 ## 🧬 Format compatibility
 
@@ -35,6 +35,13 @@ writer, DeepMind's AlphaFold source, vina.scripps.edu manual) and tested against
 
 AlphaFold pLDDT band cut-offs (90/70/50) come from DeepMind's `alphafold/common/confidence.py`;
 rendering colors follow the AFDB legend. Writers emit only what each format can honestly carry.
+
+**Column-exact, doc-verified output.** Every PDB/PDBQT/SDF line the writers emit was checked field-by-field
+against the official specs — wwPDB v3.3 (name cols 13–16, altLoc 17, iCode 27, charge 71–76 / element 77–78
+for PDBQT) and the BIOVIA CTfile spec (MDL charge codes at cols 37–39, `M  CHG` property lines for charges
+beyond ±3) — and round-tripped against real files, so external fixed-column tools (Vina, ChimeraX, 3Dmol,
+OpenBabel) parse our exports correctly. The ligand's bond table (from SDF/MOL2/CIF) travels through as
+CONECT records when poses are shown in the viewer — real chemistry, not distance guesses.
 
 ## 🚀 Run it
 

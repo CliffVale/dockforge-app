@@ -34,12 +34,13 @@
     return t[0].toUpperCase() + (t.length > 1 ? t[1].toLowerCase() : "");
   }
 
-  // PDB atom-name formatting rule: 1-char elements get a leading space so the
-  // symbol starts in column 14 (wwPDB v3.3 atom-name convention).
+  // PDB atom-name formatting rule (wwPDB v3.3): the name field is 4 chars
+  // (cols 13-16). 1-char element names are right-justified so the symbol
+  // starts in column 14; multi-char element names start in column 13.
   function fmtAtomName(name, elem) {
     const n = String(name || "").slice(0, 4);
     const el = elementFromSymbol(elem);
-    if (el.length === 1 && n.length < 4) return (" " + n).slice(0, 4);
+    if (el.length === 1 && n.length < 4) return (" " + n).padEnd(4, " ");
     return n.padEnd(4, " ").slice(0, 4);
   }
 
@@ -48,7 +49,7 @@
   // One normalized atom shape for every reader:
   // {serial,name,alt,res,resi,chain,x,y,z,elem,occ,bfac,charge,adtype,het,model}
   function blankAtom() {
-    return { serial: 0, name: "", alt: "", res: "", resi: 0, chain: "",
+    return { serial: 0, name: "", alt: "", res: "", resi: 0, icode: "", chain: "",
              x: NaN, y: NaN, z: NaN, elem: "X", occ: 1, bfac: 0,
              charge: null, adtype: "", het: false, model: 1 };
   }
@@ -177,6 +178,7 @@
       a.res = line.slice(17, 20).trim();
       a.chain = line.slice(21, 22).trim();
       a.resi = parseInt(line.slice(22, 26), 10) || 0;
+      a.icode = line.slice(26, 27).trim();
       a.x = parseFloat(line.slice(30, 38));
       a.y = parseFloat(line.slice(38, 46));
       a.z = parseFloat(line.slice(46, 54));
@@ -242,9 +244,12 @@
       const occ = (a.occ == null || isNaN(a.occ)) ? 1 : a.occ;
       const bf = (a.bfac == null || isNaN(a.bfac)) ? 0 : a.bfac;
       const el = elementFromSymbol(a.elem).padStart(2, " ").slice(0, 2);
+      // Column-exact assembly (wwPDB v3.3): name 13-16, altLoc 17, resName 18-20,
+      // chain 22, resSeq 23-26, iCode 27, x/y/z 31-54, occ 55-60, bfac 61-66,
+      // element 77-78. No separator spaces inside fixed fields.
       out.push(
-        rec + String(serial).padStart(5, " ") + " " + name + " " + alt1 + res + " " + chain +
-        String(resi).padStart(4, " ") + "   " +
+        rec + String(serial).padStart(5, " ") + " " + name + alt1 + res + " " + chain +
+        String(resi).padStart(4, " ") + (a.icode ? String(a.icode).slice(0, 1) : " ") + "   " +
         x.toFixed(3).padStart(8, " ") + y.toFixed(3).padStart(8, " ") + z.toFixed(3).padStart(8, " ") +
         occ.toFixed(2).padStart(6, " ") + bf.toFixed(2).padStart(6, " ") + "          " +
         el.padEnd(2, " ")
@@ -344,6 +349,19 @@
       const type = parseInt(line.slice(6, 9), 10);
       if (!isNaN(a1) && !isNaN(a2) && a1 >= 1 && a2 >= 1) bonds.push([a1 - 1, a2 - 1, isNaN(type) ? 1 : type]);
     }
+    // Property lines: "M  CHG nn8 aaa vvv ..." (CTfile spec) — authoritative
+    // atom charges overriding the MDL codes in columns 36-38 of atom lines.
+    for (const line of lines) {
+      if (!/^M {2}CHG/.test(line)) continue;
+      const toks = line.slice(6).trim().split(/\s+/);
+      const n = parseInt(toks[0], 10);
+      if (isNaN(n)) continue;
+      for (let k = 0; k < n; k++) {
+        const idx = parseInt(toks[1 + 2 * k], 10);
+        const chg = parseInt(toks[2 + 2 * k], 10);
+        if (!isNaN(idx) && !isNaN(chg) && atoms[idx - 1]) atoms[idx - 1].charge = chg;
+      }
+    }
     return { atoms, bonds, meta: { title } };
   }
 
@@ -398,12 +416,32 @@
       const x = a.x == null || isNaN(a.x) ? 0 : a.x;
       const y = a.y == null || isNaN(a.y) ? 0 : a.y;
       const z = a.z == null || isNaN(a.z) ? 0 : a.z;
+      // MDL charge codes (CTfile V2000 cols 37-39): 0=none,1=+3,2=+2,3=+1,
+      // 5=-1,6=-2,7=-3. Charges outside that range go to M  CHG lines.
+      const q = (a.charge == null || isNaN(a.charge)) ? 0 : a.charge;
+      const codeMap = { "3": 1, "2": 2, "1": 3, "0": 0, "-1": 5, "-2": 6, "-3": 7 };
+      const code = codeMap[String(q)];
+      const codeField = code != null ? String(code).padStart(3, " ") : "  0";
+      // Field layout after coords: space(31) symbol 32-34, massDiff 35-36,
+      // charge 37-39, then 10 more fields (stereo, H+, box, valence, H0, ...).
       out.push(x.toFixed(4).padStart(10, " ") + y.toFixed(4).padStart(10, " ") + z.toFixed(4).padStart(10, " ") +
-        " " + elementFromSymbol(a.elem).padEnd(3, " ") + " 0  0  0  0  0  0  0  0  0  0  0  0");
+        " " + elementFromSymbol(a.elem).padEnd(3, " ") + " 0" + codeField + "  0".repeat(10));
     }
     for (const b of bonds) {
       out.push(String((b[0] | 0) + 1).padStart(3, " ") + String((b[1] | 0) + 1).padStart(3, " ") +
         String(b[2] == null ? 1 : b[2]).padStart(3, " "));
+    }
+    // M  CHG property lines for charges the atom-line codes cannot express
+    // (|q|>3 or non-integer). Format: "M  CHG nn8 aaa vvv ..." (CTfile spec).
+    const extras = [];
+    for (let i = 0; i < atoms.length; i++) {
+      const q = atoms[i] && atoms[i].charge;
+      if (q == null || isNaN(q) || q === 0) continue;
+      if ({ "3": 1, "2": 2, "1": 3, "0": 0, "-1": 5, "-2": 6, "-3": 7 }[String(q)] != null) continue;
+      extras.push(String(i + 1).padStart(3, " ") + String(Math.round(q)).padStart(4, " "));
+    }
+    for (let k = 0; k < extras.length; k += 8) {
+      out.push("M  CHG" + String(Math.min(8, extras.length - k)).padStart(3, " ") + " " + extras.slice(k, k + 8).join(" "));
     }
     out.push("M  END");
     return out.join("\n") + "\n$$$$\n";
@@ -570,10 +608,12 @@
       a.name = (row[col.label_atom_id] || "").replace(/"/g, "");
       a.res = row[col.label_comp_id] || "";
       a.resi = parseInt(row[col.label_seq_id], 10) || parseInt(row[col.auth_seq_id], 10) || 0;
+      if (col.pdbx_PDB_ins_code !== undefined) a.icode = String(row[col.pdbx_PDB_ins_code] || "").replace(/[.?]/g, "");
       a.chain = row[col.auth_asym_id] || row[col.label_asym_id] || "";
       a.x = parseFloat(row[col.Cartn_x]); a.y = parseFloat(row[col.Cartn_y]); a.z = parseFloat(row[col.Cartn_z]);
       a.occ = parseFloat(row[col.occupancy]) || 1;
       a.bfac = parseFloat(row[col.B_iso_or_equiv]) || 0;
+      if (col.pdbx_PDB_model_num !== undefined) a.model = parseInt(row[col.pdbx_PDB_model_num], 10) || 1;
       const gi = row[col.group_PDB] || "ATOM";
       a.het = gi === "HETATM";
       const typeSym = row[col.type_symbol] || "";
@@ -581,7 +621,16 @@
       if (isNaN(a.x) || isNaN(a.y) || isNaN(a.z)) continue;
       atoms.push(a);
     }
-    return { format: "mmcif", atoms, bonds: [], meta: {} };
+    // Multi-model support (NMR ensembles): boundaries per pdbx_PDB_model_num,
+    // same shape readPdb returns for MODEL/ENDMDL.
+    const modelNums = [];
+    for (const a of atoms) { if (!modelNums.includes(a.model)) modelNums.push(a.model); }
+    const models = modelNums.length > 1 ? modelNums.map((m, i) => {
+      let last = 0;
+      for (const a of atoms) { if (a.model === m) last = Math.max(last, atoms.indexOf(a) + 1); }
+      return last;
+    }) : [];
+    return { format: "mmcif", atoms, bonds: [], models, meta: { multiModel: models.length > 0 } };
   }
 
   // RCSB ligand dictionary CIF (chem_comp_atom / chem_comp_bond)

@@ -106,6 +106,18 @@
                    poseFiles: [], refText: null, refName: "" };
 
   /* ---------- pose parsing (all formats via DFFormats) ---------- */
+  // Map global bond atom-indices to segment-local ones for a model slice
+  // [start, end); drops bonds whose partners fall outside the slice.
+  function sliceBonds(bonds, start, end) {
+    if (!Array.isArray(bonds)) return [];
+    const out = [];
+    for (const b of bonds) {
+      const i = b[0] - start, j = b[1] - start;
+      if (i >= 0 && j >= 0 && i < end - start && j < end - start) out.push([i, j, b[2]]);
+    }
+    return out;
+  }
+
   function parsePoses(text, name){
     const F = window.DFFormats;
     if (!F) return [];
@@ -124,7 +136,9 @@
       const sc = (d.scores && d.scores[i]) || null;
       poses.push({
         name: bounds.length > 1 ? "mode " + (i + 1) : "pose",
-        pdbText: F.toPdb(seg),
+        // Bonds (when the source format carries them: SDF/MOL2/CIF) are written
+        // as CONECT so the viewer renders true chemistry, not distance guesses.
+        pdbText: F.toPdb(seg, { conect: sliceBonds(d.bonds || [], start, end) }),
         fmt: "pdb",
         score: sc ? sc.score : null,
         rms1: sc ? sc.rmsd_lb : null,

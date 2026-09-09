@@ -402,3 +402,63 @@ test("every exported reader exists and is a function", () => {
     assert.equal(typeof F[fn], "function", fn);
   }
 });
+
+/* ---------- regression: doc-audit fixes (verified vs wwPDB v3.3, CTfile) ---------- */
+
+test("toPdb emits wwPDB v3.3 column-exact lines (no shifted fields)", () => {
+  const out = F.toPdb([{ name: " CA ", res: "ALA", resi: 12, chain: "A", x: 1.5, y: 2.5, z: 3.5, elem: "C" }]);
+  const line = out.split("\n")[0];
+  assert.equal(line.slice(17, 20), "ALA", "resName cols 18-20");
+  assert.equal(line.slice(21, 22), "A", "chainID col 22");
+  assert.equal(line.slice(22, 26), "  12", "resSeq cols 23-26");
+  assert.equal(line.slice(30, 38), "   1.500", "x cols 31-38");
+  assert.equal(line.slice(76, 78), " C", "element cols 77-78");
+  const back = F.readPdb(out);
+  assert.equal(back.atoms[0].res, "ALA");
+  assert.equal(back.atoms[0].chain, "A");
+  assert.equal(back.atoms[0].resi, 12);
+});
+
+test("toPdb writes and reads back insertion codes at col 27", () => {
+  const out = F.toPdb([{ name: " CA ", res: "GLY", resi: 25, icode: "A", chain: "B", x: 0, y: 0, z: 0, elem: "C" }]);
+  const line = out.split("\n")[0];
+  assert.equal(line.slice(26, 27), "A", "iCode col 27");
+  assert.equal(line.slice(30, 31), " ", "x field starts col 31 (space before minus sign)");
+  assert.equal(F.readPdb(out).atoms[0].icode, "A");
+});
+
+test("toPdbqt line matches real Webina benchmark byte layout (79 chars, charge/type cols)", () => {
+  const real = fx("2P16_ligand_apixaban.pdbqt").split("\n").find(l => l.startsWith("HETATM"));
+  const mine = F.toPdbqt(F.readPdbqt(real + "\n").atoms).split("\n").find(l => l.startsWith("HETATM"));
+  assert.equal(mine.length, real.length, "line length");
+  assert.equal(mine.slice(70, 76), real.slice(70, 76), "charge cols 71-76");
+  assert.equal(mine.slice(77, 79), real.slice(77, 79), "AD-type cols 78-79");
+});
+
+test("readSdf honors M  CHG property lines from real PubChem imatinib (+1 on N)", () => {
+  const rec = F.readSdf(fx("1iep_ligand.sdf"));
+  assert.equal(rec.atoms[31].charge, 1, "atom 32 (1-based) protonated piperazine N");
+});
+
+test("toSdf writes MDL charge codes and M  CHG, charges round-trip", () => {
+  const out = F.toSdf([
+    { elem: "N", x: 0, y: 0, z: 0, charge: 1 },
+    { elem: "O", x: 1, y: 0, z: 0, charge: -2 },
+    { elem: "Fe", x: 2, y: 0, z: 0, charge: 4 },
+    { elem: "C", x: 3, y: 0, z: 0, charge: 0 },
+  ]);
+  const L = out.split("\n");
+  assert.equal(L[4].slice(36, 39), "  3", "+1 -> MDL code 3 at cols 37-39");
+  assert.equal(L[5].slice(36, 39), "  6", "-2 -> MDL code 6");
+  assert.ok(L.some(l => /^M  CHG/.test(l)), "Fe4+ emitted as M  CHG");
+  const rb = F.readSdf(out);
+  assert.equal(JSON.stringify(rb.atoms.map(a => a.charge)), JSON.stringify([1, -2, 4, 0]),
+    "charges survive round-trip (vm-realm arrays compared by value)");
+});
+
+test("readMmcif parses pdbx_PDB_model_num into models shape", () => {
+  const r = F.readMmcif(fx("1bna.cif"));
+  assert.equal(r.atoms.length, 566);
+  assert.equal(r.models.length, 0, "single-model file: empty models array");
+  assert.equal(r.meta.multiModel, false);
+});

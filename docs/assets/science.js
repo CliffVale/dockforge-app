@@ -10,6 +10,11 @@
     const atoms = [];
     for (const line of String(text || "").split("\n")) {
       if (!(line.startsWith("ATOM") || line.startsWith("HETATM"))) continue;
+      // Alternate conformations (wwPDB v3.3 altLoc, col 17): keep the blank and
+      // "A" conformers only, the standard first-conformer policy — otherwise
+      // duplicated atoms skew centroid/pocket/geometry analyses.
+      const alt = line.slice(16, 17);
+      if (alt !== " " && alt !== "A" && alt !== "") continue;
       let elem = line.slice(76, 78).trim();
       if (!elem) {
         const nm = line.slice(12, 16).trim().replace(/^[0-9]+/, "").replace(/[0-9]+$/, "");

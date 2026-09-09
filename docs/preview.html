@@ -235,6 +235,18 @@
     return { stick: { radius: 0.14, colorscheme: "element" } };
   }
 
+  // Map global bond atom-indices to segment-local ones for a model slice
+  // [start, end); drops bonds whose partners fall outside the slice.
+  function sliceBonds(bonds, start, end) {
+    if (!Array.isArray(bonds)) return [];
+    const out = [];
+    for (const b of bonds) {
+      const i = b[0] - start, j = b[1] - start;
+      if (i >= 0 && j >= 0 && i < end - start && j < end - start) out.push([i, j, b[2]]);
+    }
+    return out;
+  }
+
   // Decide what text+format to hand to 3Dmol's native parsers (verified in the
   // shipped 2.4.0 build: pdb, cif, mol2, sdf, xyz, prmtop, lammpstrj). Formats
   // without a native parser are re-serialized to PDB via our writers so the
@@ -246,7 +258,7 @@
       case "sdf": return { text, fmt: "sdf" };
       case "mol2": return { text, fmt: "mol2" };
       case "xyz": return { text, fmt: "xyz" };
-      case "ligand-cif": return { text: DFFormats.toPdb(data.atoms), fmt: "pdb" };
+      case "ligand-cif": return { text: DFFormats.toPdb(data.atoms, { conect: data.bonds || [] }), fmt: "pdb" };
       case "pdbqt": {
         let atoms = data.atoms;
         if (data.meta && data.meta.multiModel && typeof modelIndex === "number") {
@@ -254,7 +266,7 @@
           const end = data.models[modelIndex] || atoms.length;
           atoms = atoms.slice(start, end);
         }
-        return { text: DFFormats.toPdb(atoms), fmt: "pdb" };
+        return { text: DFFormats.toPdb(atoms, { conect: sliceBonds(data.bonds, start, end) }), fmt: "pdb" };
       }
       case "gro": case "crd": case "psf":
         return { text: DFFormats.toPdb(data.atoms), fmt: "pdb" };
