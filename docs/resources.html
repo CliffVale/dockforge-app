@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Resources — DockForge</title>
+<meta name="description" content="Curated links to the official docs and data sources behind DockForge: structure databases, file-format specs, visualization tools, and the docking tools we interoperate with.">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<main class="wrap"></main>
+
+<script src="assets/app.js"></script>
+<script>
+(function () {
+  "use strict";
+  const $ = DF.$, esc = DF.esc;
+  const main = $("main.wrap");
+  if (!main) return;
+
+  const LINKS = [
+    {
+      group: "Structure databases",
+      items: [
+        { name: "RCSB Protein Data Bank", url: "https://www.rcsb.org", desc: "The primary experimental structure archive used throughout DockForge." },
+        { name: "RCSB Search API", url: "https://search.rcsb.org", desc: "The search endpoint DockForge queries from the Structure Finder." },
+        { name: "RCSB Data API", url: "https://data.rcsb.org", desc: "Metadata endpoint for experimental details without downloading files." },
+        { name: "RCSB file download", url: "https://files.rcsb.org", desc: "Where DockForge downloads coordinate files (PDB/CIF)." },
+        { name: "PDBe — Protein Data Bank in Europe", url: "https://www.ebi.ac.uk/pdbe", desc: "Alternate mirror and annotation source for the same PDB entries." },
+        { name: "AlphaFold Protein Structure Database", url: "https://alphafold.ebi.ac.uk", desc: "Predicted protein models. DockForge reads pLDDT from the B-factor column." },
+        { name: "PubChem", url: "https://pubchem.ncbi.nlm.nih.gov", desc: "Small-molecule database queried by DockForge's Structure Finder (name/CID/SMILES)." },
+      ]
+    },
+    {
+      group: "File formats & specs",
+      items: [
+        { name: "wwPDB format v3.3", url: "https://www.wwpdb.org/documentation/file-format-content", desc: "The official PDB/PDBQT column spec DockForge follows for atom records, CONECT, etc." },
+        { name: "CTfile / SDF / MOL (BIOVIA)", url: "https://www.wiley.com/en-us/BIOVIA+CTfile+Formats", desc: "The V2000/V3000 SDF/MOL specs behind the DockForge SDF reader and writer." },
+        { name: "GROMACS file formats", url: "https://manual.gromacs.org/current/reference-manual/file-formats.html", desc: "Official reference for GRO and other GROMACS structure/trajectory formats." },
+        { name: "CHARMM / XPLOR PSF & CRD", url: "https://www.charmm.org", desc: "CHARMM topology and coordinate formats DockForge can read." },
+        { name: "Tripos MOL2", url: "https://www.tripos.com", desc: "MOL2 format used by DockForge for molecule import/export." },
+        { name: "AutoDock / AutoDock Vina files", url: "https://autodock.scripps.edu", desc: "GPF/DPF config, PDBQT, and the Vina scoring/box model DockForge supports." },
+        { name: "ChimeraX file formats", url: "https://www.cgl.ucsf.edu/chimerax/docs/user/commands.html", desc: "Desktop visualization tool that reads many of the same formats DockForge handles." },
+      ]
+    },
+    {
+      group: "Visualization & desktop tools",
+      items: [
+        { name: "3Dmol.js", url: "https://3dmol.org", desc: "The WebGL viewer DockForge uses for live preview, result viewer, and the lab pocket view." },
+        { name: "UCSF ChimeraX", url: "https://www.cgl.ucsf.edu/chimerax", desc: "Desktop molecular viewer DockForge links to for deeper visual inspection." },
+        { name: "PyMOL", url: "https://www.pymol.org", desc: "Popular desktop molecular visualization tool (external link)." },
+        { name: "MDAnalysis", url: "https://www.mdanalysis.org", desc: "Python library for analyzing trajectories and structures (external reference)." },
+        { name: "OpenBabel", url: "https://openbabel.org", desc: "Chemistry toolbox for format conversion — useful alongside DockForge." },
+      ]
+    },
+    {
+      group: "Docking tools DockForge interoperates with",
+      items: [
+        { name: "Webina (Vina WASM)", url: "https://durrantlab.pitt.edu/webina/", desc: "The browser-based Vina runner DockForge's lab page is built around." },
+        { name: "Vina documentation", url: "https://vina.scripps.edu", desc: "Scoring and configuration reference for the Vina model DockForge can read." },
+        { name: "HDOCK", url: "http://hdock.phys.hust.edu.cn", desc: "Web server DockForge can read output from (.out + model PDBs)." },
+        { name: "ChimeraX alphafold command", url: "https://www.cgl.ucsf.edu/chimerax/docs/user/commands/alphafold.html", desc: "Example of how a desktop tool fetches AlphaFold models (DockForge reads the result files)." },
+      ]
+    },
+    {
+      group: "Curation notes",
+      items: [
+        { name: "About the links on this page", url: "#", desc: "Every link here is chosen because it is an official or well-known source for the topic. External sites may change over time; if a link breaks, report it in the DockForge repo issues and we will update it." },
+      ]
+    }
+  ];
+
+  let html = `
+    <div class="page-head">
+      <div class="breadcrumb"><a href="index.html">Home</a><span class="sep">/</span>Resources</div>
+      <h1>📚 Resources &amp; links</h1>
+      <p class="desc">The official docs and data sources behind DockForge — structure databases, file-format specifications, visualization tools, and the docking tools we interoperate with. External links only; no tracking, no accounts required to read.</p>
+    </div>
+
+    <div class="layout" style="grid-template-columns:220px minmax(0,1fr);gap:1.4rem;padding-top:.6rem">
+      <aside class="sidebar">
+        <div class="group">Pages</div>
+        <a class="side-link" href="index.html">🏠 Home</a>
+        <a class="side-link" href="course.html">🎓 Course</a>
+        <a class="side-link" href="glossary.html">📖 Glossary</a>
+        <a class="side-link" href="lab.html">🧪 Docking Lab</a>
+        <a class="side-link" href="preview.html">👁 Live Preview</a>
+        <a class="side-link" href="results.html">📊 Result Viewer</a>
+        <a class="side-link" href="find.html">🔎 Structure Finder</a>
+        <a class="side-link" href="tester.html">🧪 Format Tester</a>
+        <a class="side-link active" href="resources.html">📚 Resources</a>
+        <div class="group" style="margin-top:1.2rem">Help</div>
+        <div class="muted" style="font-size:.82rem">
+          This page is a curated directory of official sources. If you are new here, the
+          <a href="course.html">Course</a> is the easiest place to start.
+        </div>
+      </aside>
+
+      <div class="content">`;
+
+  for (const g of LINKS) {
+    html += `<h2>${esc(g.group)}</h2>`;
+    for (const it of g.items) {
+      const isAnchor = it.url.trim().charAt(0) === "#";
+      html += `<div class="card" style="margin:.6rem 0">
+        <a href="${esc(it.url)}"${isAnchor ? "" : ' target="_blank" rel="noopener"'} class="card-link" style="display:block;color:var(--foreground);text-decoration:none;padding:.3rem 0">
+          <strong style="font-size:1.02rem">${esc(it.name)}</strong>
+          <div class="muted" style="font-size:.82rem;margin:.15rem 0 0">${esc(it.desc)}</div>
+          <div class="muted" style="font-size:.76rem;margin:.1rem 0 0;opacity:.7">${isAnchor ? "on this page" : esc(it.url)}</div>
+        </a>
+      </div>`;
+    }
+  }
+  html += `</div></div>`;
+
+  main.innerHTML = html;
+})();
+</script>
+</body>
+</html>

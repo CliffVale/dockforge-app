@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Format Tester — DockForge</title>
+<meta name="description" content="Drop any structure file and see it parsed, converted to other formats, and validated — with a pass/fail table so you can trust the result yourself.">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<main class="wrap"></main>
+
+<script src="assets/app.js"></script>
+<script src="assets/formats.js"></script>
+<script>
+/* DockForge — Format Tester / verifier page.
+   Drop any supported structure file; the page detects it, parses it through
+   DFFormats, converts it to every converter we have, and compares
+   atom counts, coordinate drift and bond counts against the source parse.
+   The result table is meant to be auditable by the reader.
+*/
+(function () {
+  "use strict";
+  const $ = DF.$, esc = DF.esc;
+
+  const main = $("main.wrap");
+  if (!main) return;
+
+  // ---------- supported converters ----------
+  const CONVERSIONS = [
+    { label: "PDB", ext: "pdb", fmt: "pdb" },
+    { label: "PDBQT", ext: "pdbqt", fmt: "pdbqt" },
+    { label: "SDF", ext: "sdf", fmt: "sdf" },
+    { label: "MOL2", ext: "mol2", fmt: "mol2" },
+    { label: "GRO", ext: "gro", fmt: "gro" },
+    { label: "CRD", ext: "crd", fmt: "crd" },
+    { label: "mmCIF", ext: "cif", fmt: "mmcif" },
+    { label: "XYZ", ext: "xyz", fmt: "xyz" },
+  ];
+
+  main.innerHTML = `
+    <div class="page-head">
+      <div class="breadcrumb"><a href="index.html">Home</a><span class="sep">/</span>Format Tester</div>
+      <h1>🧪 Format Tester</h1>
+      <p class="desc">Drop any structure file here and the verifier parses it, converts it to every format we support, and compares atom counts, coordinate drift and bonds — with a pass/fail table so you can read the result yourself.</p>
+    </div>
+
+    <div class="layout" style="grid-template-columns:220px minmax(0,1fr);gap:1.4rem;padding-top:.6rem">
+      <aside class="sidebar">
+        <div class="group">Pages</div>
+        <a class="side-link" href="index.html">🏠 Home</a>
+        <a class="side-link" href="lab.html">🧪 Docking Lab</a>
+        <a class="side-link" href="preview.html">👁 Live Preview</a>
+        <a class="side-link" href="results.html">📊 Result Viewer</a>
+        <a class="side-link active" href="find.html">🔎 Structure Finder</a>
+        <a class="side-link" href="tester.html">🧪 Format Tester</a>
+        <div class="group" style="margin-top:1.2rem">Quick</div>
+        <div class="muted" style="font-size:.82rem">
+          <span class="kbd">Ctrl</span>+<span class="kbd">K</span> brings up ⌘K.<br/>
+          Open <b>⌘K</b> then type <b>tester</b> to jump here.
+        </div>
+      </aside>
+
+      <div class="content">
+        <div id="dropZone" class="drop cards" style="grid-column:1/-1">
+          <div class="card" style="cursor:pointer;border-style:dashed;text-align:center">
+            <h3>Drop a structure file here</h3>
+            <p class="muted" style="font-size:.88rem">Any file the format library can detect — PDB, PDBQT, SDF, MOL2, GRO, CRD, mmCIF, XYZ — and many more.</p>
+            <input type="file" id="fileInput" accept=".pdb,.pdbqt,.sdf,.mol2,.cif,. cif,mmcif,.gro,.crd,.psf,.xyz,.mol,.sdf" style="display:none">
+            <p class="muted" style="font-size:.82rem;margin-top:.5rem">or</p>
+            <button type="button" id="pickBtn" class="btn" style="margin:0 auto">Choose a file</button>
+          </div>
+        </div>
+
+        <div id="summary" style="display:none;margin-top:1.2rem"></div>
+        <div id="report" style="display:none;margin-top:1rem"></div>
+
+        <div id="explain" class="card" style="margin-top:1.4rem">
+          <h3>How the verifier works</h3>
+          <p class="muted" style="font-size:.88rem">The file is read with <code>DFFormats.readAny</code>, which detects the format and parses it with the matching reader. The verifier then rebuilds the same atoms with each writer (<code>DFFormats.toPdb</code>, <code>toPdbqt</code>, <code>toSdf</code>, <code>toMol2</code>, <code>toGro</code>, <code>toCrd</code>, <code>toMmcif</code>, <code>toXyz</code>) and re-reads each converted blob through the matching reader.</p>
+          <p class="muted" style="font-size:.82rem">Then it compares the original parse and the re-read parse on three axes:</p>
+          <ul class="muted" style="font-size:.82rem;list-style:none;padding:.2rem 0 0 1rem;line-height:1.7">
+            <li><b>Atom count</b> — must match exactly.</li>
+            <li><b>Coordinate drift</b> — every atom’s (Δx, Δy, Δz) is compared and summarised as min/max/mean; within each format’s decimal precision, the re-read coordinates should match the source to the last representable digit.</li>
+            <li><b>Bond count</b> — formats that carry bonds (PDB, PDBQT, SDF, MOL2, mmCIF, ligand CIF) must preserve the count through conversion.</li>
+          </ul>
+          <p class="muted" style="font-size:.82rem">A row marked <span class="badge green">pass</span> means the re-read parse matches the source on that axis. <span class="badge red">fail</span> means a difference was found — the table explains why.</p>
+          <p class="muted" style="font-size:.78rem;margin-top:.5rem">Provenance: every converter is implemented from the official format specs (wwPDB v3.3, CTfile, GROMACS, CHARMM, Tripos MOL2, RCSB mmCIF), and the library’s own regression suite tests the same conversions on real + synthetic fixtures — see <code>tests/formats.spec.mjs</code>.</p>
+        </div>
+      </div>
+    </div>`;
+
+  // ---------- state ----------
+  const fileInput = $("#fileInput"), pickBtn = $("#pickBtn");
+  const dropZone = $("#dropZone");
+  const summary = $("#summary"), report = $("#report");
+  pickBtn.addEventListener("click", () => fileInput.click());
+  dropZone.addEventListener("click", (e) => {
+    if (e.target === dropZone || e.target.classList.contains("card") || e.target.tagName === "H3" || e.target.tagName === "P" || e.target.tagName === "BUTTON") {
+      fileInput.click();
+    }
+  });
+  fileInput.addEventListener("change", () => {
+    const f = fileInput.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => runVerifier(f.name, reader.result);
+    reader.readAsText(f);
+  });
+  dropZone.addEventListener("dragover", (e) => { e.preventDefault(); dropZone.classList.add("over"); });
+  dropZone.addEventListener("dragleave", () => dropZone.classList.remove("over"));
+  dropZone.addEventListener("drop", (e) => { e.preventDefault(); dropZone.classList.remove("over"); const f = e.dataTransfer.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => runVerifier(f.name, r.result); r.readAsText(f); });
+
+  // ---------- verifier ----------
+  function fmtName(fmt) { return fmt; }
+
+  function coordKey(p) { return [p.x, p.y, p.z]; }
+
+  function compareAtoms(src, tgt) {
+    const n = Math.min(src.length, tgt.length);
+    if (src.length !== tgt.length) {
+      return {
+        atomCount: { src: src.length, tgt: tgt.length, ok: false, note: "atom count differs" }
+      };
+    }
+    let minDrift = 1e9, maxDrift = 0, sumDrift = 0;
+    const mismatches = [];
+    for (let i = 0; i < n; i++) {
+      const dx = src[i].x - tgt[i].x, dy = src[i].y - tgt[i].y, dz = src[i].z - tgt[i].z;
+      const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      minDrift = Math.min(minDrift, d);
+      maxDrift = Math.max(maxDrift, d);
+      sumDrift += d;
+      if (d > 1e-4) mismatches.push({ i, src: [src[i].x, src[i].y, src[i].z], tgt: [tgt[i].x, tgt[i].y, tgt[i].z], d });
+    }
+    const meanDrift = sumDrift / n;
+    return {
+      atomCount: { src: src.length, tgt: tgt.length, ok: true },
+      drift: {
+        min: minDrift, max: maxDrift, mean: meanDrift,
+        ok: meanDrift < 1e-3 && maxDrift < 1e-2,
+        note: `Δx = ${minDrift.toExponential(1)}..${maxDrift.toExponential(1)} mean ${meanDrift.toExponential(1)}`,
+        highlight: mismatches.slice(0, 5)
+      }
+    };
+  }
+
+  function roundTrip(name, text) {
+    const srcAny = F.readAny(name, text);
+    const src = srcAny.atoms || [];
+    const bondsSrc = srcAny.bonds || [];
+
+    const rows = [];
+    for (const conv of CONVERSIONS) {
+      let converted = null, reRead = null, err = null;
+      try {
+        let txt = null;
+        if (conv.fmt === "pdb") {
+          txt = F.toPdb(src, { conect: bondsSrc.slice() });
+        } else if (conv.fmt === "pdbqt") {
+          txt = F.toPdbqt(src);
+        } else if (conv.fmt === "sdf") {
+          txt = F.toSdf(src, { bonds: bondsSrc.slice() });
+        } else if (conv.fmt === "mol2") {
+          txt = F.toMol2(src, { bonds: bondsSrc.slice() });
+        } else if (conv.fmt === "gro") {
+          txt = F.toGro(src);
+        } else if (conv.fmt === "crd") {
+          txt = F.toCrd(src);
+        } else if (conv.fmt === "mmcif") {
+          txt = F.toMmcif(src);
+        } else if (conv.fmt === "xyz") {
+          txt = F.toXyz(src);
+        } else { continue; }
+        converted = txt;
+        const parsed = F.readAny(conv.ext, converted);
+        reRead = parsed.atoms || [];
+        const bondsTgt = parsed.bonds || [];
+        const res = compareAtoms(src, reRead);
+        rows.push({
+          format: conv.label,
+          converted: converted != null,
+          atomOk: res.atomCount.ok,
+          atomSrc: res.atomCount.src,
+          atomTgt: res.atomCount.tgt,
+          drift: res.drift,
+          bondSrc: bondsSrc.length,
+          bondTgt: bondsTgt.length,
+          bondOk: bondsSrc.length === bondsTgt.length,
+          note: res.atomCount.note + (res.drift ? "; " + res.drift.note : "") + (bondsSrc.length !== bondsTgt.length ? `; bonds ${bondsSrc.length}→${bondsTgt.length}` : ""),
+          pass: res.atomCount.ok && (res.drift ? res.drift.ok : true) && bondsSrc.length === bondsTgt.length
+        });
+      } catch (e) {
+        err = e && e.message ? e.message : String(e);
+        rows.push({ format: conv.label, converted: false, error: err, pass: false, note: err });
+      }
+    }
+    const srcMeta = { atoms: src.length, bonds: bondsSrc.length, format: srcAny.format };
+    return { srcAny, rows, srcMeta };
+  }
+
+  function statusText(status) {
+    if (status === "loading") return "<span class=\"muted\">parsing and converting…</span>";
+    if (status === "pass") return "<span class=\"badge green\">all pass</span>";
+    if (status === "partial") return "<span class=\"badge\">mixed</span>";
+    if (status === "fail") return "<span class=\"badge red\">failures</span>";
+    return "<span class=\"badge\">none</span>";
+  }
+
+  function verdict(rows) {
+    const allPass = rows.every(r => r.pass);
+    if (rows.length === 0) return "none";
+    if (allPass) return "pass";
+    const anyPass = rows.some(r => r.pass);
+    if (anyPass) return "partial";
+    return "fail";
+  }
+
+  function runVerifier(name, text) {
+    dropZone.style.display = "none";
+    summary.style.display = "block";
+    report.style.display = "block";
+    summary.innerHTML = `<div class="card">
+      <h3>File: ${esc(name)}</h3>
+      <p class="muted">detected format: ${esc(F.detectFormat(name, text))} · size: ${text.length} chars</p>
+      ${statusText("loading")}
+    </div>`;
+    let rows;
+    try {
+      const result = roundTrip(name, text);
+      rows = result.rows;
+      const verdict_ = verdict(rows);
+      summary.innerHTML =
+        `<div class="card">
+           <h3>File: ${esc(name)}</h3>
+           <p class="muted">detected format: ${esc(result.srcMeta.format)} · atoms: ${result.srcMeta.atoms} · bonds: ${result.srcMeta.bonds} · size: ${text.length} chars</p>
+           ${statusText(verdict_)}
+         </div>`;
+
+      const header = `
+        <table class="table">
+          <thead><tr>
+            <th>target format</th><th>re-read OK</th><th>atoms orig→re-read</th><th>bonds orig→re-read</th><th>drift</th><th>status</th>
+          </thead><tbody>`;
+      const body = rows.map(r => {
+        const convOk = r.converted ? "" : "<span class=\"badge red\">no</span>";
+        const driftTxt = r.drift ? r.drift.note : "—";
+        const bondTxt = r.bondSrc != null ? `${r.bondSrc}→${r.bondTgt}` : "—";
+        return `<tr>
+          <td>${esc(r.format)}</td>
+          <td>${convOk}</td>
+          <td>${r.atomSrc != null ? `${r.atomSrc}→${r.atomTgt}` : "—"}</td>
+          <td>${bondTxt}</td>
+          <td>${esc(driftTxt)}</td>
+          <td>${r.pass ? '<span class="badge green">pass</span>' : '<span class="badge red">fail</span>'}</td>
+        </tr>`;
+      }).join("");
+      report.innerHTML = header + body + "</tbody></table>";
+      if (verdict_ === "fail" || verdict_ === "partial") {
+        const failRows = rows.filter(r => !r.pass);
+        let extra = "";
+        if (failRows.length) {
+          extra = `<div class="card" style="margin-top:.7rem"><h3>Why rows failed</h3><ul class="muted" style="font-size:.85rem;list-style:none;padding:.2rem 0 0 1rem;line-height:1.6">
+            ${failRows.map(r => `<li><b>${esc(r.format)}:</b> ${esc(r.note || r.error || "fail")}</li>`).join("")}
+          </ul></div>`;
+        }
+        report.innerHTML += extra;
+      }
+    } catch (e) {
+      rows = null;
+      summary.innerHTML = `<div class="card"><h3 class="muted">Verifier crashed</h3><div class="errbox">${esc(e && e.message ? e.message : String(e))}</div></div>`;
+    }
+  }
+})();
+</script>
+</body>
+</html>
