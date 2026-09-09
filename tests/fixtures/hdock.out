@@ -1,0 +1,11 @@
+======================================================
+HDOCK summary for job example (fixture reconstructed
+from the HDOCK server example page, 2026-09-09)
+======================================================
+Receptor: 1CGI_E.pdb
+Ligand:   1CGI_I.pdb
+
+Summary of the Top 10 Models
+Rank              1        2        3        4        5
+Docking Score -444.95  -244.21  -229.46  -210.01  -206.24
+Ligand rmsd     0.42    18.23     7.39    11.07    15.61

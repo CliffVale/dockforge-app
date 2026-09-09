@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live Preview — DockForge</title>
+<link rel="stylesheet" href="assets/style.css">
+<style>
+  .viewerbox { height: 520px; border-radius: 12px; overflow: hidden; border: 1px solid #1d2a3d; background: #0a0f18; position: relative; }
+  .viewerbox .vhint { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #61748f; font-size: 15px; text-align: center; padding: 20px; }
+  .drop-active { outline: 2px dashed #58a6ff; outline-offset: -8px; }
+  .badge { display:inline-block; padding:2px 10px; border-radius:999px; font-size:12.5px; margin-right:6px; border:1px solid #24344d; background:#101a29; color:#9fb4d0; }
+  .badge.ok { border-color:#1c4a2e; background:#0e2718; color:#5ad98a; }
+  .badge.warn { border-color:#5a4a1c; background:#29200e; color:#f0c96a; }
+  .fmtchip { display:inline-block; padding:3px 10px; margin:3px; border-radius:8px; font-size:12.5px; background:#0e1828; border:1px solid #223350; color:#a9c0dd; font-family:ui-monospace,monospace; }
+  .fmtchip.small { opacity:.75; }
+  .scorecard { display:flex; gap:14px; flex-wrap:wrap; margin:10px 0; }
+  .scorecard .sc { background:#0e1828; border:1px solid #223350; border-radius:10px; padding:10px 14px; min-width:120px; }
+  .scorecard .sc b { display:block; font-size:20px; color:#e8f0fb; }
+  .scorecard .sc span { color:#7d93b2; font-size:12.5px; }
+  .plddt-legend { display:flex; gap:10px; flex-wrap:wrap; align-items:center; font-size:13px; color:#93a8c4; }
+  .plddt-legend i { display:inline-block; width:14px; height:14px; border-radius:3px; margin-right:4px; vertical-align:-2px; }
+  table.models { width:100%; border-collapse:collapse; font-size:13.5px; }
+  table.models th, table.models td { text-align:left; padding:6px 8px; border-bottom:1px solid #1c2941; }
+  table.models th { color:#7d93b2; font-weight:600; }
+  table.models tr.clickable:hover { background:#101c2e; cursor:pointer; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+</style>
+</head>
+<body>
+
+<main class="wrap">
+  <h1>🔬 Live Preview</h1>
+  <p class="lead">Drop <b>any</b> docking-related file — it's detected, parsed and rendered instantly, right here in your browser.
+  Nothing is uploaded anywhere. PDB · PDBQT · SDF/MOL · MOL2 · mmCIF · ligand CIF · XYZ · GRO · CHARMM CRD · PSF · AlphaFold models ·
+  Vina configs &amp; outputs · AutoDock GPF/DPF · HDOCK results · ChimeraX scripts.</p>
+
+  <div class="row" style="gap:10px; flex-wrap:wrap; margin:14px 0;">
+    <label class="btn">Choose file… <input type="file" id="fileInput" multiple style="display:none"></label>
+    <span style="color:#7d93b2; align-self:center;">or drag &amp; drop onto the viewer, or load a sample:</span>
+    <select id="sampleSel" style="background:#0e1828;color:#dbe7f6;border:1px solid #24344d;border-radius:8px;padding:7px 10px;">
+      <option value="">— samples —</option>
+      <option value="assets/samples/AF-P69905-F1-model_v6.pdb">AlphaFold model (P69905 · PDB)</option>
+      <option value="assets/samples/apixaban_ligand.pdbqt">Apixaban ligand (PDBQT, Webina)</option>
+      <option value="assets/samples/mol24.mol2">Small molecule (MOL2, OpenBabel)</option>
+      <option value="assets/samples/netropsin_3d.sdf">Netropsin 3D (SDF, PubChem)</option>
+      <option value="assets/samples/121d_receptor.pdb">121D DNA receptor (PDB)</option>
+    </select>
+  </div>
+
+  <div class="viewerbox" id="dropzone">
+    <div class="vhint">Drop a file here — or use the buttons above ✨</div>
+  </div>
+
+  <div id="status" class="row" style="margin:12px 0;"></div>
+  <div id="summary" style="display:none">
+    <div class="scorecard" id="scorecards"></div>
+    <div id="plddtRow" style="display:none; margin:10px 0;">
+      <div class="plddt-legend">
+        <b>pLDDT</b>:
+        <span><i style="background:#0053D6"></i>very high (≥90)</span>
+        <span><i style="background:#65CBF3"></i>confident (70–90)</span>
+        <span><i style="background:#FFDB13"></i>low (50–70)</span>
+        <span><i style="background:#FF7D45"></i>very low (&lt;50)</span>
+        <span class="mono" id="plddtStats"></span>
+      </div>
+      <p style="font-size:12.5px;color:#7d93b2;margin:6px 0 0;">Band cut-offs (90/70/50) from DeepMind's <span class="mono">alphafold/common/confidence.py</span>; hues follow the AFDB legend. Never treat low-pLDDT regions as real structure.</p>
+    </div>
+    <div id="modelsBlock" style="display:none; margin:14px 0;">
+      <h3 style="margin-bottom:6px;">Docking models <span style="font-weight:400;color:#7d93b2;">(click a row to view that pose)</span></h3>
+      <table class="models" id="modelsTable"></table>
+    </div>
+    <div id="gridBlock" style="display:none; margin:14px 0;">
+      <h3 style="margin-bottom:6px;">Docking box <span style="font-weight:400;color:#7d93b2;">(from config or grid file)</span></h3>
+      <div class="scorecard" id="gridCards"></div>
+    </div>
+  </div>
+
+  <div class="card" id="exportCard" style="display:none; margin-top:16px;">
+    <h3>Export / use elsewhere</h3>
+    <div class="row" id="exportButtons" style="gap:8px; flex-wrap:wrap;"></div>
+    <p style="font-size:12.5px; color:#7d93b2; margin-bottom:0;">Writers emit what the format can honestly carry (coordinates, element, charge, AD type, bonds when known) — everything loads in Vina, AutoDock, ChimeraX, VMD, PyMOL, GROMACS, Open Babel.</p>
+  </div>
+
+  <details style="margin-top:18px;">
+    <summary style="cursor:pointer;color:#9fb4d0;">What each format is for (cheat sheet)</summary>
+    <div style="margin-top:10px; display:flex; flex-wrap:wrap;">
+      <span class="fmtchip">PDB — structures everywhere</span>
+      <span class="fmtchip">PDBQT — AutoDock/Vina/Webina input</span>
+      <span class="fmtchip">SDF/MOL — ligand libraries</span>
+      <span class="fmtchip">MOL2 — Tripos, docking tools</span>
+      <span class="fmtchip">mmCIF — PDB archive standard</span>
+      <span class="fmtchip">ligand CIF — RCSB component dicts</span>
+      <span class="fmtchip">XYZ — simple coordinates</span>
+      <span class="fmtchip">GRO — GROMACS (nm!)</span>
+      <span class="fmtchip">CRD — CHARMM</span>
+      <span class="fmtchip">PSF — CHARMM topology</span>
+      <span class="fmtchip">AlphaFold — pLDDT in B-factors</span>
+      <span class="fmtchip">Vina config — box &amp; options</span>
+      <span class="fmtchip">GPF — AutoGrid maps</span>
+      <span class="fmtchip">DPF — AutoDock runs</span>
+      <span class="fmtchip">HDOCK out — protein–protein</span>
+      <span class="fmtchip">CXC — ChimeraX scripts</span>
+      <span class="fmtchip small">LAMMPS — recognized only</span>
+      <span class="fmtchip small">InsightII — recognized only</span>
+    </div>
+  </details>
+
+  <div class="footer" style="margin-top:20px;">
+    <a href="index.html">DockForge</a> · viewer <a href="https://3dmol.org" target="_blank" rel="noopener">3Dmol.js (BSD)</a> ·
+    runs 100% locally — no uploads · <a href="https://github.com/CliffVale/dockforge-app" target="_blank" rel="noopener">source (MIT)</a>
+  </div>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/2.4.0/3Dmol-min.js"></script>
+<script src="assets/science.js"></script>
+<script src="assets/formats.js"></script>
+<script src="assets/app.js"></script>
+<script>
+(function () {
+  "use strict";
+  const $ = (s, r) => (r || document).querySelector(s);
+  const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const fmtNames = {
+    "pdb": "PDB", "pdbqt": "PDBQT", "sdf": "SDF/MOL", "mol2": "MOL2", "mmcif": "mmCIF",
+    "ligand-cif": "ligand CIF", "xyz": "XYZ", "gro": "GRO", "crd": "CHARMM CRD", "psf": "PSF",
+    "vina-config": "Vina config", "gpf": "AutoDock GPF", "dpf": "AutoDock DPF",
+    "hdock-out": "HDOCK result", "cxc": "ChimeraX script", "lammps": "LAMMPS",
+    "insightii": "InsightII", "log-text": "log text", "unknown": "unknown"
+  };
+
+  const dropzone = $("#dropzone");
+  let viewer = null, lastData = null, lastText = "", lastName = "";
+  // Band edges verified in DeepMind alphafold/common/confidence.py;
+  // hues follow the AFDB legend (as used by ChimeraX/ESMFold coloring).
+  function plddtColor(b) {
+    if (b >= 90) return "#0053D6";
+    if (b >= 70) return "#65CBF3";
+    if (b >= 50) return "#FFDB13";
+    return "#FF7D45";
+  }
+
+  function ensureViewer() {
+    if (viewer || !window.$3Dmol) return viewer;
+    dropzone.innerHTML = "";
+    viewer = $3Dmol.createViewer(dropzone, { backgroundColor: "#0a0f18", antialias: true });
+    return viewer;
+  }
+
+  function setStatus(html) { $("#status").innerHTML = html; }
+
+  function badge(text, cls) { return '<span class="badge ' + (cls || "") + '">' + text + "</span>"; }
+
+  function render(data, name, text) {
+    lastData = data; lastText = text; lastName = name;
+    const fmtLabel = fmtNames[data.format] || data.format;
+    let html = badge("✔ " + fmtLabel, "ok") + badge(name);
+    const cards = [];
+    if (data.atoms && data.atoms.length) {
+      html += badge(data.atoms.length + " atoms");
+      cards.push({ n: data.atoms.length, l: "atoms" });
+      const elems = new Set(data.atoms.map(a => a.elem));
+      if (elems.size <= 8) html += badge([...elems].join(" "));
+      const waters = data.atoms.filter(a => /^(HOH|WAT|DOD|H2O|SOL)$/.test(a.res)).length;
+      if (waters) html += badge(waters + " waters");
+      cards.push({ n: elems.size, l: "elements" });
+    }
+    if (data.bonds && data.bonds.length) { html += badge(data.bonds.length + " bonds"); cards.push({ n: data.bonds.length, l: "bonds" }); }
+    if (data.meta && data.meta.multiModel) html += badge(data.models.length + " poses", "warn");
+    if (data.error) html += " " + badge("⚠ " + data.error, "warn");
+    if (data.meta && data.meta.warning) html += " " + badge("note: " + esc(data.meta.warning), "warn");
+    setStatus(html);
+    $("#summary").style.display = "block";
+
+    // score cards
+    const sc = [];
+    if (data.scores && data.scores.length) {
+      sc.push({ n: data.scores[0].score.toFixed(1), l: "best Vina score (kcal/mol)" });
+      sc.push({ n: data.scores.length, l: "poses" });
+    }
+    if (data.models && data.models.length && data.models[0].score != null) {
+      sc.push({ n: data.models[0].score.toFixed(1), l: "best HDOCK score" });
+    }
+    $("#scorecards").innerHTML = sc.map(c => '<div class="sc"><b>' + esc(c.n) + "</b><span>" + esc(c.l) + "</span></div>").join("");
+
+    renderModelTable(data);
+    renderGrid(data);
+    render3D(data, text);
+    renderExports(data, name, text);
+  }
+
+  function renderModelTable(data) {
+    const block = $("#modelsBlock"), table = $("#modelsTable");
+    const rows = [];
+    if (data.meta && data.meta.multiModel && data.scores && data.scores.length) {
+      data.scores.forEach((s, i) => rows.push({ i, score: s.score, lb: s.rmsd_lb, ub: s.rmsd_ub }));
+    } else if (data.models && data.models.length && data.models[0].score != null) {
+      data.models.forEach(m => rows.push({ i: m.rank - 1, score: m.score, lb: null, ub: null, hdock: true }));
+    }
+    if (!rows.length) { block.style.display = "none"; return; }
+    block.style.display = "block";
+    table.innerHTML = "<tr><th>#</th><th>Score (kcal/mol)</th><th>RMSD l.b.</th><th>RMSD u.b.</th></tr>" +
+      rows.map(r => '<tr class="clickable" data-i="' + r.i + '"><td>' + (r.i + 1) + "</td><td><b>" + r.score.toFixed(1) + "</b></td><td>" +
+        (r.lb == null ? (r.hdock ? "—" : "0.000") : r.lb.toFixed(3)) + "</td><td>" +
+        (r.ub == null ? "—" : r.ub.toFixed(3)) + "</td></tr>").join("");
+    table.querySelectorAll("tr.clickable").forEach(tr => {
+      tr.addEventListener("click", () => showModel(+tr.dataset.i));
+    });
+    table._rows = rows;
+  }
+
+  function showModel(i) {
+    if (!lastData || !lastData.meta || !lastData.meta.multiModel) return;
+    render3D(lastData, lastText, i);
+  }
+
+  function renderGrid(data) {
+    const block = $("#gridBlock"), cards = $("#gridCards");
+    const box = (data.box) || (data.meta && data.meta.box);
+    const center = data.meta && data.meta.center;
+    if (!box && !center) { block.style.display = "none"; return; }
+    block.style.display = "block";
+    const items = [];
+    if (box) {
+      items.push({ n: box.center.map(v => +v.toFixed(1)).join(", "), l: "box center (Å)" });
+      items.push({ n: box.size.map(v => +v.toFixed(1)).join(", "), l: "box size (Å)" });
+    } else if (center) {
+      items.push({ n: center.map(v => +v.toFixed(1)).join(", "), l: "grid center (Å)" });
+    }
+    if (data.meta && data.meta.spacing) items.push({ n: data.meta.spacing, l: "spacing (Å)" });
+    cards.innerHTML = items.map(c => '<div class="sc"><b class="mono">' + esc(c.n) + "</b><span>" + esc(c.l) + "</span></div>").join("");
+  }
+
+  function styleForAtom(a) {
+    return { stick: { radius: 0.14, colorscheme: "element" } };
+  }
+
+  // Decide what text+format to hand to 3Dmol's native parsers (verified in the
+  // shipped 2.4.0 build: pdb, cif, mol2, sdf, xyz, prmtop, lammpstrj). Formats
+  // without a native parser are re-serialized to PDB via our writers so the
+  // viewer still gets correct coordinates and 3Dmol can perceive bonds.
+  function to3D(data, text, modelIndex) {
+    switch (data.format) {
+      case "pdb": return { text, fmt: "pdb" };
+      case "mmcif": return { text, fmt: "cif" };
+      case "sdf": return { text, fmt: "sdf" };
+      case "mol2": return { text, fmt: "mol2" };
+      case "xyz": return { text, fmt: "xyz" };
+      case "ligand-cif": return { text: DFFormats.toPdb(data.atoms), fmt: "pdb" };
+      case "pdbqt": {
+        let atoms = data.atoms;
+        if (data.meta && data.meta.multiModel && typeof modelIndex === "number") {
+          const start = data.models[modelIndex - 1] || 0;
+          const end = data.models[modelIndex] || atoms.length;
+          atoms = atoms.slice(start, end);
+        }
+        return { text: DFFormats.toPdb(atoms), fmt: "pdb" };
+      }
+      case "gro": case "crd": case "psf":
+        return { text: DFFormats.toPdb(data.atoms), fmt: "pdb" };
+      default: return null;
+    }
+  }
+
+  function render3D(data, text, modelIndex) {
+    const v = ensureViewer();
+    if (!v) {
+      dropzone.innerHTML = '<div class="vhint">3D viewer unavailable offline — file parsed successfully, see summary below.</div>';
+      return;
+    }
+    v.clear();
+    const job = to3D(data, text, modelIndex);
+    if (!job) {
+      dropzone.innerHTML = '<div class="vhint">No coordinates in this file (config/score/script) — see the parsed summary below.</div>';
+      return;
+    }
+    const m = v.addModel(job.text, job.fmt, {});
+    const afPdb = data.format === "pdb" &&
+      (/ALPHAFOLD/i.test(String(lastText || "").slice(0, 3000)) || /alphafold/i.test(lastName || ""));
+    const small = (data.atoms || []).length > 0 && (data.atoms || []).length <= 120;
+    if (afPdb) {
+      // color by pLDDT (B-factor column) using verified band cut-offs
+      v.setStyle({}, { cartoon: { colorfunc: a => plddtColor(a.b || 0) } });
+      v.addStyle({ het: true }, { sphere: { scale: 0.3, colorscheme: "greenCarbon" } });
+    } else if (small) {
+      v.setStyle({}, { stick: { radius: 0.15, colorscheme: "element" }, sphere: { scale: 0.2, colorscheme: "element" } });
+    } else {
+      v.setStyle({}, { cartoon: { color: "#5f7d99" } });
+      v.addStyle({ het: true }, { stick: { radius: 0.18, colorscheme: "greenCarbon" } });
+      v.addStyle({ het: true }, { sphere: { scale: 0.22, opacity: 0.35, colorscheme: "greenCarbon" } });
+    }
+    v.zoomTo();
+    v.render();
+    // pLDDT stats row when the colored file is AlphaFold
+    const row = $("#plddtRow");
+    if (afPdb) {
+      const perRes = DFFormats.plddtFromAtoms(data.atoms).map(r => r.plddt);
+      const avg = perRes.reduce((s, x) => s + x, 0) / Math.max(perRes.length, 1);
+      const hi = perRes.filter(x => x >= 90).length, mid = perRes.filter(x => x >= 70 && x < 90).length;
+      row.style.display = "block";
+      $("#plddtStats").textContent = "mean " + avg.toFixed(1) + " · " + hi + " very-high, " + mid + " confident of " + perRes.length + " residues";
+    } else {
+      row.style.display = "none";
+    }
+  }
+
+  function renderExports(data, name, text) {
+    const card = $("#exportCard"), row = $("#exportButtons");
+    const atoms = (data.atoms && data.atoms.length) ? data.atoms : null;
+    if (!atoms) { card.style.display = "none"; return; }
+    card.style.display = "block";
+    const writers = [
+      ["pdb", "PDB"], ["pdbqt", "PDBQT"], ["sdf", "SDF"], ["mol2", "MOL2"],
+      ["xyz", "XYZ"], ["gro", "GRO"], ["crd", "CHARMM CRD"]
+    ];
+    const base = (lastName || "dockforge").replace(/\.[^.]+$/, "").replace(/[^\w.-]+/g, "_") || "dockforge";
+    row.innerHTML = writers.map(([fmt, label]) =>
+      '<button class="btn ghost small" data-fmt="' + fmt + '">⬇ ' + label + "</button>").join("");
+    row.querySelectorAll("button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const fmt = btn.dataset.fmt;
+        let opts = {};
+        if (fmt === "sdf" || fmt === "mol2") opts = { bonds: data.bonds || [], title: base };
+        const out = window.DFFormats.writeAny(fmt, atoms, opts);
+        if (!out) return;
+        const blob = new Blob([out], { type: "text/plain" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = base + "." + (fmt === "vina-config" ? "txt" : fmt);
+        a.click();
+        URL.revokeObjectURL(a.href);
+        if (window.DFScience) DFScience.awardBadge("archivist");
+      });
+    });
+  }
+
+  function handle(name, text) {
+    const data = window.DFFormats.readAny(name, text);
+    render(data, name, text);
+  }
+
+  // --- file input + dnd ---
+  $("#fileInput").addEventListener("change", e => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = () => handle(f.name, String(r.result));
+    r.readAsText(f);
+  });
+  $("#sampleSel").addEventListener("change", e => {
+    const url = e.target.value;
+    if (!url) return;
+    fetch(url).then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
+      .then(t => handle(url.split("/").pop(), t))
+      .catch(err => setStatus(badge("could not load sample: " + err.message, "warn")));
+  });
+  ["dragenter", "dragover"].forEach(ev => dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.add("drop-active"); }));
+  ["dragleave", "drop"].forEach(ev => dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.remove("drop-active"); }));
+  dropzone.addEventListener("drop", e => {
+    const f = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = () => handle(f.name, String(r.result));
+    r.readAsText(f);
+  });
+
+  // auto-load the AlphaFold sample on first visit for instant delight
+  if (window.$3Dmol) {
+    fetch("assets/samples/AF-P69905-F1-model_v6.pdb")
+      .then(r => r.text())
+      .then(t => handle("AF-P69905-F1-model_v6.pdb", t))
+      .catch(() => {});
+  }
+})();
+</script>
+</body>
+</html>

@@ -15,9 +15,26 @@ AutoDock Vina engine (compiled to WebAssembly as **Webina**) runs docking entire
 |---|---|
 | 📖 **Course** (`docs/course.html`) | 7 lessons: docking basics → proteins & ligands → pockets → poses & scores → PDBQT prep → grid boxes → reading results. Checkpoint quizzes + local progress tracking. |
 | ⚗️ **Docking Lab** (`docs/lab.html`) | Example kits (DNA dodecamer + netropsin, 121D, with computed grid box; apo 1BNA), a click-by-click Webina walkthrough, guided steps, and the embedded Webina app. |
+| 🔬 **Live Preview** (`docs/preview.html`) | Drop **any** docking file — detected, parsed and rendered instantly: PDB · PDBQT · SDF/MOL · MOL2 · mmCIF · ligand CIF · XYZ · GRO · CHARMM CRD/PSF · AlphaFold models (pLDDT-colored) · Vina configs & outputs · AutoDock GPF/DPF · HDOCK results · ChimeraX scripts. One-click re-export to 7 formats. |
 | 📊 **Result Viewer** (`docs/results.html`) | Drag-and-drop Webina output: pose table parsed from `REMARK VINA RESULT`, interactive 3D (3Dmol.js), pocket residues (≤4 Å rule), heuristic H-bond lines, CSV export. |
 | 🔤 **Glossary** (`docs/glossary.html`) | 40 jargon terms, searchable. |
-| 📁 `docs/assets/` | Bundled structures: 121D/1BNA PDBs, DNA-receptor-only and netropsin-ligand-only PDBs, PDBe binding-site snapshot. |
+| 📁 `docs/assets/` | Bundled structures: 121D/1BNA PDBs, DNA-receptor-only and netropsin-ligand-only PDBs, PDBe binding-site snapshot, plus preview samples (AlphaFold P69905, apixaban PDBQT, MOL2, netropsin SDF). |
+| 🧪 `tests/` | 45-test Node suite (`node --test tests/tools.spec.mjs tests/formats.spec.mjs`) validating every reader/writer against **real fixture files** (provenance in `tests/fixtures/PROVENANCE.md`): RCSB mmCIF + ligand CIF, PubChem SDF, Webina benchmark PDBQTs, AlphaFold DB model, OpenBabel MOL2, plus spec-derived GRO/CRD/GPF/DPF/Vina-config/HDOCK fixtures. |
+
+## 🧬 Format compatibility
+
+`docs/assets/formats.js` reads and writes the file types of the docking ecosystem — every layout taken
+from a verified primary source (wwPDB spec, real Webina/OpenBabel/RCSB/AlphaFold files, VMD's CHARMM
+writer, DeepMind's AlphaFold source, vina.scripps.edu manual) and tested against real files:
+
+| | Formats |
+|---|---|
+| **Read** | PDB, PDBQT (incl. multi-model Vina output + torsion trees), SDF/MOL (V2000 + V3000 subset), MOL2, mmCIF, RCSB ligand CIF, XYZ, GRO (nm→Å), CHARMM CRD (normal + EXT), PSF, AlphaFold models (pLDDT from B-factors), Vina config, AutoDock GPF/DPF, HDOCK results, ChimeraX `.cxc` |
+| **Write** | PDB, PDBQT, SDF, MOL2, XYZ, GRO, CHARMM CRD, Vina config, AutoDock GPF |
+| **Recognized** | LAMMPS trajectories, InsightII (detected, parse planned) |
+
+AlphaFold pLDDT band cut-offs (90/70/50) come from DeepMind's `alphafold/common/confidence.py`;
+rendering colors follow the AFDB legend. Writers emit only what each format can honestly carry.
 
 ## 🚀 Run it
 

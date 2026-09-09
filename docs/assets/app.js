@@ -18,6 +18,7 @@
     ["course.html", "Learn"],
     ["glossary.html", "Glossary"],
     ["lab.html", "Docking Lab"],
+    ["preview.html", "Live Preview"],
     ["results.html", "Result Viewer"]
   ];
 

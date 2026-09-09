@@ -1,0 +1,8 @@
+# ChimeraX session: view docking result with AlphaFold receptor
+open 2P16_receptor.pdbqt
+open AF-P69905-F1-model_v6.pdb
+alphafold fetch P69905 version 4
+color byattribute r:plddt target r
+hide atoms
+show cartoons
+view matrix models #1,2,3,0.8638,-0.2799,0.4196,85.77,0.5008,0.8463,-0.1734,-71.63,-0.058,0.4509,0.8908,12.41
