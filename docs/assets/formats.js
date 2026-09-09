@@ -598,9 +598,10 @@
       const a = blankAtom();
       a.name = row[col.atom_id] || "";
       a.elem = elementFromSymbol(row[col.type_symbol] || a.name);
-      a.x = parseFloat(row[col.pdbx_model_Cartn_x_ideal] ?? row[col.Model_Cartn_x] ?? row[col.Cartn_x]);
-      a.y = parseFloat(row[col.pdbx_model_Cartn_y_ideal] ?? row[col.Model_Cartn_y] ?? row[col.Cartn_y]);
-      a.z = parseFloat(row[col.pdbx_model_Cartn_z_ideal] ?? row[col.Model_Cartn_z] ?? row[col.Cartn_z]);
+      const cx = row[col.pdbx_model_Cartn_x_ideal] ?? row[col.Model_Cartn_x] ?? row[col.Cartn_x];
+      const cy = row[col.pdbx_model_Cartn_y_ideal] ?? row[col.Model_Cartn_y] ?? row[col.Cartn_y];
+      const cz = row[col.pdbx_model_Cartn_z_ideal] ?? row[col.Model_Cartn_z] ?? row[col.Cartn_z];
+      a.x = parseFloat(cx); a.y = parseFloat(cy); a.z = parseFloat(cz);
       const q = parseFloat(row[col.charge] || row[col.pdbx_charge]); a.charge = isNaN(q) ? null : q;
       a.res = "LIG"; a.resi = 1; a.het = true; a.serial = ri + 1;
       nameByIdx.set(a.name, ri);
@@ -615,8 +616,9 @@
         if (i !== undefined && j !== undefined) bonds.push([i, j, row[bc.value_order] || row[bc.value_dist] || "1"]);
       }
     }
-    // Files with no ideal coordinates (multi-model X-ray dicts) can yield NaN:
-    // keep atoms but flag it, so the UI can explain rather than silently drop.
+    // Some ligand dicts (multi-model X-ray entries) ship no coordinates at all:
+    // keep the atoms but flag it, so the UI can explain rather than silently
+    // drop them or render a bogus point at the origin.
     const noCoords = atoms.some(a => isNaN(a.x));
     return { format: "ligand-cif", atoms, bonds, meta: { idealCoords: !noCoords, noCoords } };
   }

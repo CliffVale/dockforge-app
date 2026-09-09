@@ -59,6 +59,20 @@
     </ol>
   </div>
 
+  <h2>🧬 Oligo designer</h2>
+  <div class="panel">
+    <p class="small muted" style="margin-top:0">Type or paste a DNA/RNA sequence — get complement, reverse complement, GC%, melting
+    temperature and molecular weight instantly (the stats a docking/simulation workflow starts from). Nothing is sent anywhere.</p>
+    <div class="row" style="gap:8px; flex-wrap:wrap">
+      <input id="oligoInput" class="mono" placeholder="e.g. CGCGAATTCGCG" style="flex:1; min-width:220px; background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:.5rem .7rem">
+      <button class="btn ghost small" id="oligoSample">try Drew–Dickerson dodecamer</button>
+    </div>
+    <div id="oligoOut" style="margin-top:.6rem"></div>
+  </div>
+
+  <h2>🏅 Your badges</h2>
+  <div class="badge-shelf" id="badgeShelf"></div>
+
   <h2>How this site works</h2>
   <div class="grid2">
     <div class="panel">
@@ -90,6 +104,41 @@
   <a href="https://github.com/CliffVale/dockforge-app" target="_blank" rel="noopener">source (MIT)</a>
 </div></footer>
 
+<script src="assets/formats.js"></script>
+<script src="assets/science.js"></script>
 <script src="assets/app.js"></script>
+<script>
+(function () {
+  "use strict";
+  const $ = s => document.querySelector(s);
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  }
+  const seen = new Set(JSON.parse(localStorage.getItem("dockforge-oligos") || "[]"));
+  function analyze(seq) {
+    const st = DFScience.oligoStats(seq);
+    if (!st.length) { $("#oligoOut").innerHTML = ""; return; }
+    seen.add(st.seq);
+    try { localStorage.setItem("dockforge-oligos", JSON.stringify([...seen])); } catch (e) {}
+    if (seen.size >= 3) DFScience.awardBadge("base-pairs");
+    $("#oligoOut").innerHTML =
+      '<div class="scorecard" style="display:flex;gap:14px;flex-wrap:wrap;margin:10px 0">' +
+      '<div class="sc"><b>' + st.length + '</b><span>nt</span></div>' +
+      '<div class="sc"><b>' + st.gcPct + '%</b><span>GC</span></div>' +
+      '<div class="sc"><b>' + st.tm + '°C</b><span>Tm (' + st.tmRule + ')</span></div>' +
+      '<div class="sc"><b>' + st.mw + '</b><span>g/mol</span></div>' +
+      '<div class="sc mono" style="max-width:100%;word-break:break-all"><b style="font-size:14px">' + esc(st.seq) + '</b><span>cleaned</span></div>' +
+      '</div>' +
+      '<p class="small muted">complement: <span class="mono">' + esc(DFScience.complement(st.seq)) + '</span> · reverse-complement: <span class="mono">' + esc(DFScience.reverseComplement(st.seq)) + '</span></p>';
+  }
+  document.addEventListener("DOMContentLoaded", () => {
+    $("#oligoInput").addEventListener("input", e => analyze(e.target.value));
+    $("#oligoSample").addEventListener("click", () => {
+      $("#oligoInput").value = "CGCGAATTCGCG";
+      analyze("CGCGAATTCGCG");
+    });
+  });
+})();
+</script>
 </body>
 </html>

@@ -175,9 +175,9 @@
 
   const BADGES = [
     { id: "graduate", icon: "🎓", name: "Course Graduate", hint: "Finish all 7 lessons" },
-    { id: "first-dock", icon: "🚀", name: "First Dock", hint: "Save your first Webina result in the lab" },
-    { id: "validator", icon: "🧭", name: "Pose Validator", hint: "Run the redocking validator on a real pose" },
-    { id: "sharp-eye", icon: "🎯", name: "Sharp Eye", hint: "Beat the pocket challenge with 3+ correct picks" },
+    { id: "first-dock", icon: "🚀", name: "First Dock", hint: "Load your first docking output in the Result Viewer" },
+    { id: "validator", icon: "🧭", name: "Pose Validator", hint: "Run a redocking validation against a reference ligand" },
+    { id: "sharp-eye", icon: "🎯", name: "Sharp Eye", hint: "Redock a crystal ligand with RMSD < 2 Å" },
     { id: "base-pairs", icon: "🧬", name: "Base Pair Scholar", hint: "Analyze 3 different oligos in the designer" },
     { id: "archivist", icon: "📔", name: "Lab Archivist", hint: "Export a lab notebook entry" }
   ];

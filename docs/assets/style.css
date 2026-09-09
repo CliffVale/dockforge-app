@@ -92,3 +92,11 @@ th{color:var(--muted);font-weight:600}
 .drag.over{border-color:var(--accent);color:var(--accent)}
 .footer{border-top:1px solid var(--line);margin-top:2.5rem;padding:1.2rem 0 2rem;color:var(--muted);font-size:.88rem}
 .warnbox{border:1px solid var(--warn);background:rgba(246,196,69,.07);border-radius:12px;padding:.7rem .9rem;margin:.8rem 0;font-size:.92rem}
+
+/* badges */
+.badge-shelf{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.6rem;margin:.8rem 0}
+.badge-card{border:1px solid var(--line);border-radius:12px;padding:.7rem .8rem;background:var(--panel2);display:flex;flex-direction:column;gap:.15rem;opacity:.55}
+.badge-card.earned{opacity:1;border-color:var(--accent2);box-shadow:0 0 0 1px var(--accent2) inset}
+.badge-ico{font-size:1.4rem}
+.badge-name{font-weight:600;font-size:.9rem}
+.badge-hint{font-size:.78rem;color:var(--muted)}

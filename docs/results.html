@@ -18,9 +18,9 @@
   <div class="grid2">
     <div class="drag" id="dropPoses">
       <b>Drop poses here</b><br>
-      <span class="small">.pdbqt (Webina/Vina output), .sdf, .mol2 or .pdb — or click to browse</span><br>
+      <span class="small">.pdbqt (Webina/Vina output), .sdf, .mol2, .pdb, .cif, .xyz, .gro, .crd, .psf — or click to browse</span><br>
       <button class="btn small" style="margin-top:.5rem" id="browsePoses">Browse…</button>
-      <input type="file" id="filePoses" multiple accept=".pdbqt,.sdf,.mol2,.pdb,.txt" style="display:none">
+      <input type="file" id="filePoses" multiple accept=".pdbqt,.sdf,.mol2,.pdb,.cif,.xyz,.gro,.crd,.psf,.txt" style="display:none">
     </div>
     <div class="drag" id="dropReceptor">
       <b>Optional: drop the receptor here</b><br>
@@ -51,6 +51,41 @@
     🔎 Red dashed lines are a <b>distance-only hint</b> (donor/acceptor pairs within 3.5 Å) — real hydrogen-bond
     assignment also needs geometry and chemistry (this is what tools like PLIP do properly).
   </div>
+
+  <div class="panel" id="validatorPanel" style="display:none">
+    <div class="row spread">
+      <h3 style="margin:0">🧭 Redocking validator</h3>
+      <button class="btn ghost small" id="valHelp">what is this?</button>
+    </div>
+    <p class="small muted" style="margin:.3rem 0 .6rem">Docked the <i>co-crystal ligand back into its own protein</i>? Drop the ligand's
+    <b>reference PDB</b> (crystal pose) here — the validator superposes pose vs crystal and scores how close you landed (redocking standard: <b>RMSD ≤ 2 Å</b>).</p>
+    <div class="row" style="gap:10px; flex-wrap:wrap">
+      <button class="btn small" id="btnRefLigand">Drop reference ligand…</button>
+      <input type="file" id="fileRefLigand" accept=".pdb,.sdf,.mol2,.xyz,.pdbqt" style="display:none">
+      <span class="small muted" id="refName"></span>
+    </div>
+    <div id="valResults" style="margin-top:.6rem"></div>
+    <div class="warnbox" id="valHelpBox" style="display:none">
+      <b>Redocking</b> = docking a known crystal ligand back and checking you recover its pose. RMSD ≤ 2 Å is the
+      community rule-of-thumb for "reproduced the crystal pose". If your dock lands > 2 Å away, check protonation,
+      tautomers and box placement before blaming the score. This tool reports <b>best-fit RMSD</b> (optimal
+      superposition of pose onto reference, Kabsch method) — more forgiving than the receptor-frame RMSD that
+      docking benchmarks typically report, and insensitive to how the file was oriented. Atoms are matched by
+      order, so it is only meaningful when pose and reference are the same molecule in the same atom order.
+    </div>
+  </div>
+
+  <div class="panel" id="notebookPanel" style="display:none">
+    <div class="row spread">
+      <h3 style="margin:0">📔 Lab notebook</h3>
+      <div class="row" style="gap:8px">
+        <button class="btn ghost small" id="nbPrint">🖨 print / save PDF</button>
+        <button class="btn small" id="nbDownload">⬇ notebook.html</button>
+      </div>
+    </div>
+    <div id="notebookPreview" class="small" style="margin-top:.5rem"></div>
+    <p class="small muted" style="margin-bottom:0">A one-page record of this session: file provenance, scores, verdicts, pocket residues, timestamp. Print it or hand it in.</p>
+  </div>
 </main>
 
 <footer class="footer"><div class="wrap">
@@ -59,62 +94,43 @@
 </div></footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/2.4.0/3Dmol-min.js"></script>
+<script src="assets/formats.js"></script>
+<script src="assets/science.js"></script>
 <script src="assets/app.js"></script>
 <script>
 (function(){
   "use strict";
   const { $, $$ } = window.DF;
 
-  const state = { poses: [], receptorText: null, current: -1 };
+  const state = { poses: [], receptorText: null, current: -1,
+                   poseFiles: [], refText: null, refName: "" };
 
-  /* ---------- PDBQT parsing ---------- */
-  const AD2ELEM = {A:"C",C:"C",N:"N",NA:"N",NS:"N",O:"O",OA:"O",OS:"O",S:"S",SA:"S",
-                   H:"H",HD:"H",HS:"H",F:"F",CL:"Cl",BR:"Br",I:"I",P:"P",MG:"Mg",ZN:"Zn",CA:"Ca",FE:"Fe",MN:"Mn"};
-  function pdbqtBlockToPdb(lines){
-    // convert one MODEL block of pdbqt atom lines to minimal PDB (cols fixed)
-    const out = [];
-    for (const l of lines) {
-      if (!(l.startsWith("ATOM") || l.startsWith("HETATM"))) continue;
-      const name = l.slice(12,16);
-      const resn = l.slice(17,20);
-      const chain= l.slice(21,22);
-      const resi = l.slice(22,26);
-      const x=l.slice(30,38), y=l.slice(38,46), z=l.slice(46,54);
-      // last token on the line is the AD atom type
-      const tokens = l.trim().split(/\s+/);
-      const adType = (tokens[tokens.length-1] || "").toUpperCase();
-      let elem = AD2ELEM[adType] || /^[A-Z][A-Z]?$/.test(adType) ? AD2ELEM[adType] || adType[0] : "C";
-      if (adType === "OA") elem = "O";
-      const serial = String(out.length + 1).padStart(5, " ");
-      const occ = "  1.00", b = "  0.00";
-      out.push("HETATM" + serial + " " + name.padEnd(4) + " " + resn.padEnd(3) + " " + chain + resi + " " + "   " +
-               x + y + z + occ + b + "          " + String(elem).padStart(2));
-    }
-    return out.join("\n");
-  }
-  function parsePoses(text, ext){
-    if (ext === "sdf" || ext === "mol2" || (ext === "pdb" && !/MODEL /m.test(text))) {
-      return [{ name: "pose", pdbText: text, fmt: ext === "sdf" ? "sdf" : (ext === "mol2" ? "mol2" : "pdb"),
-                score: null, rms1: null, rms2: null }];
-    }
-    // pdbqt: split MODEL blocks; if no MODEL records, treat whole file as one pose
+  /* ---------- pose parsing (all formats via DFFormats) ---------- */
+  function parsePoses(text, name){
+    const F = window.DFFormats;
+    if (!F) return [];
+    const d = F.readAny(name, text);
+    const atomsAll = d.atoms || [];
+    if (!atomsAll.length) return [];
+    // multi-model files (Vina output) → one pose per MODEL block
+    const bounds = (d.meta && d.meta.multiModel && d.models && d.models.length)
+      ? d.models : [atomsAll.length];
     const poses = [];
-    const blocks = [];
-    let cur = null;
-    for (const line of text.split("\n")) {
-      if (/^MODEL /.test(line)) { cur = { lines: [], num: poses.length + 1 }; blocks.push(cur); }
-      else if (/^ENDMDL/.test(line)) { cur = null; }
-      else if (cur) cur.lines.push(line);
-    }
-    if (!blocks.length) blocks.push({ lines: text.split("\n"), num: 1 });
-    blocks.forEach((b, i) => {
-      let score = null, r1 = null, r2 = null;
-      for (const l of b.lines) {
-        const m = l.match(/REMARK VINA RESULT:\s*(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)/);
-        if (m) { score = parseFloat(m[1]); r1 = parseFloat(m[2]); r2 = parseFloat(m[3]); break; }
-      }
-      const pdbText = pdbqtBlockToPdb(b.lines);
-      if (pdbText) poses.push({ name: "mode " + (i + 1), pdbText, fmt: "pdb", score, rms1: r1, rms2: r2 });
+    let start = 0;
+    bounds.forEach((end, i) => {
+      const seg = atomsAll.slice(start, end);
+      start = end;
+      if (!seg.length) return;
+      const sc = (d.scores && d.scores[i]) || null;
+      poses.push({
+        name: bounds.length > 1 ? "mode " + (i + 1) : "pose",
+        pdbText: F.toPdb(seg),
+        fmt: "pdb",
+        score: sc ? sc.score : null,
+        rms1: sc ? sc.rmsd_lb : null,
+        rms2: sc ? sc.rmsd_ub : null,
+        sourceFile: name
+      });
     });
     return poses;
   }
@@ -225,6 +241,9 @@
     });
     $("#nPoses").textContent = state.poses.length;
     $("#scorePanel").style.display = "block";
+    $("#validatorPanel").style.display = "block";
+    $("#notebookPanel").style.display = "block";
+    if (state.refText) runValidation();
   }
   function wireCsv(){
     $("#dlCsv").addEventListener("click", () => {
@@ -238,6 +257,95 @@
     });
   }
 
+  /* ---------- redocking validator ---------- */
+  function wireValidator(){
+    if (!window.DFScience || !window.DFFormats) return;
+    const btn = $("#btnRefLigand"), file = $("#fileRefLigand");
+    if (!btn || !file) return;
+    $("#valHelp").addEventListener("click", () => {
+      const box = $("#valHelpBox");
+      box.style.display = box.style.display === "none" ? "block" : "none";
+    });
+    btn.addEventListener("click", () => file.click());
+    file.addEventListener("click", e => e.stopPropagation());
+    file.addEventListener("change", () => {
+      const f = file.files[0];
+      if (!f) return;
+      const r = new FileReader();
+      r.onload = () => {
+        state.refText = String(r.result);
+        state.refName = f.name;
+        $("#refName").textContent = "reference: " + f.name;
+        runValidation();
+      };
+      r.readAsText(f);
+    });
+  }
+
+  function runValidation(){
+    const F = window.DFFormats, S = window.DFScience;
+    const host = $("#valResults");
+    if (!state.refText || !state.poses.length) { host.innerHTML = ""; return; }
+    // per-pose best-fit RMSD vs reference (Kabsch, from science.js)
+    state.verdicts = state.poses.map((p, i) => {
+      const res = S.ligandRmsd(p.pdbText, state.refText);
+      return { i, rmsd: res.rmsd, matched: res.matched };
+    });
+    let hit = false;
+    const rows = state.verdicts.map(v => {
+      const r = v.rmsd;
+      const label = !isFinite(r) ? "n/a" : r.toFixed(2) + " Å";
+      const verdict = !isFinite(r) ? "atom mismatch" : (r <= 2 ? "✅ PASS" : r <= 3 ? "⚠ CLOSE" : "❌ off-target");
+      if (isFinite(r) && r <= 2) hit = true;
+      return "<tr><td>pose " + (v.i + 1) + "</td><td class='mono'>" + label + "</td><td>" + verdict + "</td></tr>";
+    }).join("");
+    const finite = state.verdicts.filter(v => isFinite(v.rmsd));
+    const best = finite.sort((a, b) => a.rmsd - b.rmsd)[0];
+    host.innerHTML =
+      "<table style='width:100%'><thead><tr><th>pose</th><th>RMSD vs " + DF.esc(state.refName) + "</th><th>verdict</th></tr></thead><tbody>" + rows + "</tbody></table>" +
+      (best ? "<p class='small muted'>Best pose: #" + (best.i + 1) + " at " + best.rmsd.toFixed(2) + " Å. PASS ≤ 2 Å · CLOSE ≤ 3 Å (redocking rule of thumb). Atoms are matched by order — only meaningful when pose and reference are the same molecule.</p>" : "");
+    S.awardBadge("validator");
+    if (hit) S.awardBadge("sharp-eye");
+  }
+
+  /* ---------- lab notebook ---------- */
+  function notebookHtml(){
+    const S = window.DFScience;
+    const now = new Date();
+    const scored = state.poses.filter(p => p.score != null);
+    const best = scored.slice().sort((a, b) => a.score - b.score)[0];
+    const bestV = (state.verdicts || []).filter(v => isFinite(v.rmsd)).sort((a, b) => a.rmsd - b.rmsd)[0];
+    const badges = S ? S.listBadges().filter(b => b.earned) : [];
+    return "<h1 style='font-size:1.4rem'>DockForge lab notebook</h1>" +
+      "<p>" + now.toLocaleString() + "</p>" +
+      "<h3>Files analyzed</h3><ul>" + state.poseFiles.map(f => "<li>" + DF.esc(f) + "</li>").join("") +
+      (state.refName ? "<li>reference: " + DF.esc(state.refName) + "</li>" : "") + "</ul>" +
+      "<h3>Results</h3><p>Poses: " + state.poses.length +
+      (best ? " · best score: " + best.score.toFixed(1) + " kcal/mol (pose " + (state.poses.indexOf(best) + 1) + ")" : "") +
+      (bestV ? " · best redocking RMSD: " + bestV.rmsd.toFixed(2) + " Å (pose " + (bestV.i + 1) + ")" : "") + "</p>" +
+      "<p class='small'>Scores are hypotheses, not medical guidance. RMSD ≤ 2 Å counts as reproducing the crystal pose.</p>" +
+      (badges.length ? "<h3>Badges</h3><p>" + badges.map(b => b.icon + " " + b.name).join(" · ") + "</p>" : "");
+  }
+  function wireNotebook(){
+    const panel = $("#notebookPanel");
+    if (!panel || !window.DFScience) return;
+    $("#nbPrint").addEventListener("click", () => {
+      const w = window.open("", "_blank");
+      if (!w) return;
+      w.document.write("<!DOCTYPE html><html><head><meta charset='utf-8'><title>DockForge notebook</title></head><body>" + notebookHtml() + "</body></html>");
+      w.document.close();
+      w.print();
+    });
+    $("#nbDownload").addEventListener("click", () => {
+      const html = "<!DOCTYPE html><html><head><meta charset='utf-8'><title>DockForge notebook</title></head><body>" + notebookHtml() + "</body></html>";
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+      a.download = "dockforge-notebook.html";
+      a.click();
+      DFScience.awardBadge("archivist");
+    });
+  }
+
   /* ---------- file handling ---------- */
   function readFiles(files, isReceptor){
     Array.from(files).forEach(f => {
@@ -247,9 +355,14 @@
         const ext = (f.name.split(".").pop() || "").toLowerCase();
         if (isReceptor) {
           state.receptorText = text;
+          state.receptorName = f.name;
         } else {
-          const newPoses = parsePoses(text, ext);
-          if (newPoses.length) state.poses = state.poses.concat(newPoses);
+          const newPoses = parsePoses(text, f.name);
+          if (newPoses.length) {
+            state.poses = state.poses.concat(newPoses);
+            state.poseFiles.push(f.name);
+            if (window.DFScience) DFScience.awardBadge("first-dock");
+          }
         }
         renderTable();
         if (state.poses.length) renderPose(state.current < 0 ? 0 : state.current);
@@ -278,6 +391,8 @@
       if (state.poses.length) renderPose(state.current < 0 ? 0 : state.current);
     });
     wireCsv();
+    wireValidator();
+    wireNotebook();
   });
 })();
 </script>

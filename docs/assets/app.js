@@ -101,12 +101,35 @@
     });
   }
 
+  // ---------- badges shelf (index + course) ----------
+  function renderBadges() {
+    const host = document.querySelector("#badgeShelf");
+    if (!host || !window.DFScience) return;
+    const list = DFScience.listBadges();
+    host.innerHTML = list.map(b =>
+      '<div class="badge-card' + (b.earned ? " earned" : "") + '" title="' + DF.esc(b.hint) + '">' +
+      '<span class="badge-ico">' + b.icon + '</span>' +
+      '<span class="badge-name">' + DF.esc(b.name) + '</span>' +
+      '<span class="badge-hint">' + (b.earned ? new Date(b.at).toLocaleDateString() : DF.esc(b.hint)) + '</span>' +
+      '</div>').join("");
+  }
+
+  // Course Graduate badge: all 7 lessons done
+  function checkGraduate() {
+    if (!window.DFScience) return;
+    const total = 7;
+    const done = Object.keys(loadStore()).filter(k => k.startsWith("lesson-")).length;
+    if (done >= total) DFScience.awardBadge("graduate");
+  }
+
   // ---------- init ----------
   document.addEventListener("DOMContentLoaded", () => {
     buildNav();
     wireQuizzes();
     wireLessons();
     renderProgress();
+    checkGraduate();
+    renderBadges();
   });
 
   // export for page scripts
