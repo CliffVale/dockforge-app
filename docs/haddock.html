@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HADDOCK Analyzer — DockForge</title>
+<meta name="description" content="Drop your HADDOCK 2.4 output to analyze scores, clusters, contacts, and binding hotspots — with interactive 3D visualization.">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔬</text></svg>">
+</head>
+<body>
+
+<main class="wrap">
+  <h1>HADDOCK Analyzer 🔬</h1>
+  <p class="lead muted">Drop your HADDOCK 2.4 output files — score list, structures, or both — to get an interactive
+  analysis with clusters, binding hotspots, and 3D visualization. Everything stays in your browser.</p>
+
+  <!-- Drop zone -->
+  <div class="grid2">
+    <div class="drag" id="dropScore">
+      <b>Drop HADDOCK score list here</b><br>
+      <span class="small">the_score.list, or any HADDOCK output with scores</span><br>
+      <button class="btn small" style="margin-top:.5rem" id="browseScore">Browse…</button>
+      <input type="file" id="fileScore" accept=".txt,.list,.csv" style="display:none">
+    </div>
+    <div class="drag" id="dropPdb">
+      <b>Drop HADDOCK PDB structures</b><br>
+      <span class="small">struc_*.pdb, model_*.pdb (optional — for 3D view)</span><br>
+      <button class="btn ghost small" style="margin-top:.5rem" id="browsePdb">Browse…</button>
+      <input type="file" id="filePdb" multiple accept=".pdb,.txt" style="display:none">
+    </div>
+  </div>
+
+  <!-- Score analysis -->
+  <div id="scorePanel" style="display:none">
+    <h2>Score Analysis</h2>
+    <div class="stats" id="scoreStats"></div>
+    <div class="panel" id="scoreTable"></div>
+  </div>
+
+  <!-- Clusters -->
+  <div id="clusterPanel" style="display:none">
+    <h2>Clusters</h2>
+    <div class="panel" id="clusterResults"></div>
+  </div>
+
+  <!-- 3D Viewer -->
+  <div id="viewerPanel" style="display:none">
+    <h2>3D Viewer</h2>
+    <div class="panel">
+      <div class="row" style="gap:8px;flex-wrap:wrap">
+        <select id="modelSelect"></select>
+        <button class="btn small" id="btnRender">👁 Render</button>
+        <label class="small muted"><input type="checkbox" id="chkReceptor"> Show receptor</label>
+      </div>
+    </div>
+    <div class="viewer" id="glviewer"><div class="vhint">Select a model to view</div></div>
+    <div id="contactPills" class="row" style="margin-top:.5rem"></div>
+  </div>
+
+  <!-- Contact analysis -->
+  <div id="contactPanel" style="display:none">
+    <h2>Contact Analysis</h2>
+    <div class="panel" id="contactResults"></div>
+  </div>
+
+  <!-- Export -->
+  <div id="exportPanel" style="display:none">
+    <h2>Export</h2>
+    <div class="panel">
+      <div class="row" style="gap:8px;flex-wrap:wrap">
+        <button class="btn small" id="dlCsv">⬇ scores.csv</button>
+        <button class="btn small" id="dlReport">⬇ report.html</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer class="footer"><div class="wrap">
+  <a href="index.html">DockForge</a> · HADDOCK analysis
+  (client-side) · viewer <a href="https://3dmol.org" target="_blank" rel="noopener">3Dmol.js (BSD)</a> ·
+  runs 100% locally — no uploads · <a href="https://github.com/CliffVale/dockforge-app" target="_blank" rel="noopener">source (MIT)</a>
+</div></footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/2.4.0/3Dmol-min.js"></script>
+<script src="assets/science.js"></script>
+<script src="assets/haddock.js"></script>
+<script src="assets/app.js"></script>
+<script>
+(function(){
+  "use strict";
+  const { $, $$, esc } = window.DF;
+  const H = window.DFHaddock;
+  const S = window.DFScience;
+
+  const state = {
+    models: [],       // parsed from score list
+    clusters: [],
+    pdbTexts: {},     // name -> text
+    receptorText: null,
+    current: -1
+  };
+
+  /* ---------- File handling ---------- */
+  function readScoreFile(text, name) {
+    if (!H || !H.parseScoreList) return;
+    const models = H.parseScoreList(text);
+    if (!models.length) { DF.toast("No models found in " + name, "warn"); return; }
+    state.models = models;
+    state.clusters = H.clusterModels(models, 5.0);
+    renderScores();
+    renderClusters();
+    showPanel("#scorePanel");
+    showPanel("#clusterPanel");
+    showPanel("#exportPanel");
+    DF.toast("Parsed " + models.length + " models from " + name);
+  }
+
+  function readPdbFile(text, name) {
+    state.pdbTexts[name] = text;
+    updateModelSelect();
+    showPanel("#viewerPanel");
+    showPanel("#contactPanel");
+  }
+
+  function showPanel(id) { $(id).style.display = "block"; }
+
+  /* ---------- Score table ---------- */
+  function renderScores() {
+    const models = state.models;
+    if (!models.length) return;
+
+    // Stats
+    const scores = models.map(m => m.score);
+    const best = Math.min(...scores);
+    const worst = Math.max(...scores);
+    const mean = scores.reduce((a, b) => a + b, 0) / scores.length;
+    const interp = H.interpretHaddockScore(best);
+
+    let statHtml = "";
+    const items = [
+      { label: "Total models", value: models.length, delta: "from score list" },
+      { label: "Best score", value: best.toFixed(1), delta: interp.label },
+      { label: "Mean score", value: mean.toFixed(1), delta: "kcal/mol" },
+      { label: "Clusters", value: state.clusters.length, delta: "threshold 5.0" }
+    ];
+    statHtml = items.map(i =>
+      '<div class="stat-card"><div class="stat-label">' + esc(i.label) + '</div>' +
+      '<div class="stat-value">' + esc(i.value) + '</div>' +
+      '<div class="stat-delta">' + esc(i.delta) + '</div></div>').join("");
+    $("#scoreStats").innerHTML = statHtml;
+
+    // Table
+    let html = "<table><thead><tr><th>Rank</th><th>Model</th><th>Score</th><th>vdw</th><th>elec</th><th>desolv</th><th>Cluster</th><th></th></tr></thead><tbody>";
+    models.forEach((m, i) => {
+      const interp2 = H.interpretHaddockScore(m.score);
+      html += "<tr" + (i === state.current ? " style='background:rgba(79,195,247,.15)'" : "") + ">";
+      html += "<td>" + m.rank + "</td><td>" + esc(m.model) + "</td>";
+      html += "<td class='mono' style='color:" + interp2.color + "'>" + m.score.toFixed(1) + "</td>";
+      html += "<td class='mono'>" + (m.vdw || 0).toFixed(1) + "</td>";
+      html += "<td class='mono'>" + (m.elec || 0).toFixed(1) + "</td>";
+      html += "<td class='mono'>" + (m.desolv || 0).toFixed(1) + "</td>";
+      html += "<td>" + (m.cluster || "—") + "</td>";
+      html += "<td><button class='btn small' data-i='" + i + "'>👁</button></td>";
+      html += "</tr>";
+    });
+    html += "</tbody></table>";
+    html += "<p class='small muted'>Score = HADDOCK intermolecular energy (more negative = better). Click 👁 to view in 3D.</p>";
+    $("#scoreTable").innerHTML = html;
+
+    // Wire view buttons
+    $$("#scoreTable button[data-i]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        state.current = parseInt(btn.dataset.i, 10);
+        renderModel(state.current);
+        renderScores();
+      });
+    });
+  }
+
+  /* ---------- Clusters ---------- */
+  function renderClusters() {
+    if (!state.clusters.length) return;
+    let html = "<table><thead><tr><th>Cluster</th><th>Size</th><th>Best Score</th><th>Mean Score</th><th>Top Models</th></tr></thead><tbody>";
+    state.clusters.forEach(c => {
+      const top3 = c.models.slice(0, 3).map(m => m.model).join(", ");
+      html += "<tr><td><b>" + c.id + "</b></td><td>" + c.size + "</td>";
+      html += "<td class='mono'>" + c.bestScore.toFixed(1) + "</td>";
+      html += "<td class='mono'>" + c.meanScore.toFixed(1) + "</td>";
+      html += "<td class='small'>" + esc(top3) + "</td></tr>";
+    });
+    html += "</tbody></table>";
+    html += "<p class='small muted'>Clusters group models within 5.0 kcal/mol of each other. " +
+      "The best-scoring cluster is typically the most reliable.</p>";
+    $("#clusterResults").innerHTML = html;
+  }
+
+  /* ---------- 3D Viewer ---------- */
+  let viewer = null;
+
+  function updateModelSelect() {
+    const sel = $("#modelSelect");
+    sel.innerHTML = "";
+    const names = Object.keys(state.pdbTexts);
+    names.forEach((n, i) => {
+      const opt = document.createElement("option");
+      opt.value = n;
+      opt.textContent = n;
+      sel.appendChild(opt);
+    });
+  }
+
+  function renderModel(i) {
+    const pdbNames = Object.keys(state.pdbTexts);
+    if (!pdbNames.length) return;
+
+    const el = $("#glviewer");
+    el.style.display = "block";
+    if (!viewer) {
+      el.innerHTML = "";
+      viewer = $3Dmol.createViewer(el, { backgroundColor: "#0a0f18", antialias: true });
+    }
+    if (!viewer) { el.innerHTML = '<div class="vhint">3D viewer unavailable</div>'; return; }
+
+    viewer.clear();
+
+    // Receptor
+    if (state.receptorText) {
+      viewer.addModel(state.receptorText, "pdb");
+      viewer.setStyle({}, { cartoon: { color: "#5f7d99", opacity: 0.7 } });
+    }
+
+    // Models as thin lines
+    pdbNames.forEach((name, j) => {
+      viewer.addModel(state.pdbTexts[name], "pdb");
+      const idx = j + (state.receptorText ? 1 : 0);
+      if (j === i) {
+        viewer.setStyle({ model: idx }, {
+          stick: { radius: 0.18, colorscheme: "greenCarbon" },
+          sphere: { scale: 0.22, opacity: 0.35, colorscheme: "greenCarbon" }
+        });
+      } else {
+        viewer.setStyle({ model: idx }, { line: { color: "#44546a", linewidth: 1 } });
+      }
+    });
+
+    viewer.zoomTo();
+    viewer.render();
+
+    // Contact analysis
+    if (state.receptorText) {
+      analyzeContacts(state.receptorText, state.pdbTexts[pdbNames[i]]);
+    }
+  }
+
+  function analyzeContacts(receptorText, ligandText) {
+    if (!H || !H.findContacts || !S) return;
+
+    const parseAtoms = (text) => {
+      const atoms = [];
+      for (const line of text.split("\n")) {
+        if (line.startsWith("ATOM") || line.startsWith("HETATM")) {
+          atoms.push({
+            x: parseFloat(line.slice(30, 38)),
+            y: parseFloat(line.slice(38, 46)),
+            z: parseFloat(line.slice(46, 54)),
+            name: line.slice(12, 16).trim(),
+            res: line.slice(17, 20).trim(),
+            resi: parseInt(line.slice(22, 26), 10),
+            chain: line.slice(21, 22).trim()
+          });
+        }
+      }
+      return atoms;
+    };
+
+    const recAtoms = parseAtoms(receptorText);
+    const ligAtoms = parseAtoms(ligandText);
+    const { contacts, hbonds } = H.findContacts(recAtoms, ligAtoms, 4.5);
+
+    if (contacts.length) {
+      let html = "<h3>Contacts</h3>";
+      html += "<p class='small muted'>Found <b>" + contacts.length + "</b> contacts (≤4.5 Å), including <b>" + hbonds.length + "</b> potential H-bonds (≤3.5 Å).</p>";
+
+      // Binding residue frequency
+      const freq = H.bindingResidueFrequency(contacts);
+      if (freq.length) {
+        html += "<h4>Binding hotspots</h4>";
+        html += "<table><thead><tr><th>Residue</th><th>Contact count</th></tr></thead><tbody>";
+        freq.slice(0, 15).forEach(f => {
+          const bar = Math.round((f.count / freq[0].count) * 100);
+          html += "<tr><td><b>" + esc(f.residue) + "</b></td>";
+          html += "<td><span class='chart-bar' style='width:" + bar + "%;display:inline-block;vertical-align:middle'></span> " + f.count + "</td></tr>";
+        });
+        html += "</tbody></table>";
+      }
+
+      // Top H-bonds
+      if (hbonds.length) {
+        html += "<h4>Potential H-bonds</h4>";
+        html += "<table><thead><tr><th>Protein</th><th>DNA/RNA</th><th>Distance</th></tr></thead><tbody>";
+        hbonds.slice(0, 10).forEach(h => {
+          html += "<tr><td>" + esc(h.proteinResidue) + " (" + esc(h.proteinAtom) + ")</td>";
+          html += "<td>" + esc(h.dnaResidue) + " (" + esc(h.dnaAtom) + ")</td>";
+          html += "<td class='mono'>" + h.distance.toFixed(2) + " Å</td></tr>";
+        });
+        html += "</tbody></table>";
+      }
+
+      $("#contactResults").innerHTML = html;
+
+      // Show contact pills
+      const unique = [...new Set(contacts.map(c => c.proteinResidue))];
+      $("#contactPills").innerHTML = '<span class="muted small">Contact residues:</span> ' +
+        unique.slice(0, 20).map(r => '<span class="pill"><b>' + esc(r) + '</b></span>').join("");
+
+      // Highlight contact residues in viewer
+      if (viewer) {
+        const resis = [...new Set(contacts.map(c => ({ chain: c.proteinChain, resi: c.proteinResidue.replace(/[A-Za-z]+/g, "") })))];
+        if (resis.length && state.receptorText) {
+          viewer.addStyle({
+            or: resis.map(r => ({ chain: r.chain || undefined, resi: parseInt(r.resi, 10) }))
+          }, { stick: { radius: 0.1, color: "#f6c445" } });
+          viewer.render();
+        }
+      }
+    } else {
+      $("#contactResults").innerHTML = "<p class='muted'>No contacts found within 4.5 Å.</p>";
+    }
+  }
+
+  /* ---------- Downloads ---------- */
+  function wireDownloads() {
+    $("#dlCsv").addEventListener("click", () => {
+      if (!state.models.length) return;
+      const rows = [["rank","model","score","vdw","elec","desolv","cluster"]];
+      state.models.forEach(m => {
+        rows.push([m.rank, m.model, m.score, m.vdw, m.elec, m.desolv, m.cluster]);
+      });
+      const csv = rows.map(r => r.join(",")).join("\n");
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+      a.download = "haddock_scores.csv";
+      a.click();
+    });
+
+    $("#dlReport").addEventListener("click", () => {
+      const best = state.models.length ? state.models.reduce((a, b) => a.score < b.score ? a : b) : null;
+      const interp = best ? H.interpretHaddockScore(best.score) : null;
+      let html = "<!DOCTYPE html><html><head><meta charset='utf-8'><title>HADDOCK Report</title></head><body style='font-family:system-ui;max-width:800px;margin:2rem auto;padding:0 1rem'>";
+      html += "<h1>HADDOCK Analysis Report</h1>";
+      html += "<p>Generated " + new Date().toLocaleString() + "</p>";
+      html += "<h2>Summary</h2><ul>";
+      html += "<li>Models analyzed: " + state.models.length + "</li>";
+      html += "<li>Clusters: " + state.clusters.length + "</li>";
+      if (best) {
+        html += "<li>Best score: " + best.score.toFixed(1) + " (" + best.model + ") — " + (interp ? interp.label : "") + "</li>";
+      }
+      html += "</ul>";
+      html += "</body></html>";
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+      a.download = "haddock_report.html";
+      a.click();
+    });
+  }
+
+  /* ---------- Init ---------- */
+  function wireDrop(dropId, inputId, handler) {
+    const zone = $("#" + dropId), input = $("#" + inputId);
+    if (!zone || !input) return;
+    zone.addEventListener("click", e => { if (e.target.tagName !== "BUTTON") input.click(); });
+    input.addEventListener("change", () => {
+      Array.from(input.files).forEach(f => {
+        const r = new FileReader();
+        r.onload = () => handler(String(r.result), f.name);
+        r.readAsText(f);
+      });
+    });
+    ["dragover", "dragenter"].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.add("over"); }));
+    ["dragleave", "drop"].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.remove("over"); }));
+    zone.addEventListener("drop", e => {
+      Array.from(e.dataTransfer.files).forEach(f => {
+        const r = new FileReader();
+        r.onload = () => handler(String(r.result), f.name);
+        r.readAsText(f);
+      });
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    wireDrop("dropScore", "fileScore", readScoreFile);
+    wireDrop("dropPdb", "filePdb", readPdbFile);
+    $("#browseScore").addEventListener("click", () => $("#fileScore").click());
+    $("#browsePdb").addEventListener("click", () => $("#filePdb").click());
+    $("#btnRender").addEventListener("click", () => {
+      const name = $("#modelSelect").value;
+      const names = Object.keys(state.pdbTexts);
+      const idx = names.indexOf(name);
+      if (idx >= 0) renderModel(idx);
+    });
+    wireDownloads();
+  });
+})();
+</script>
+</body>
+</html>

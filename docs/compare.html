@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aptamer Compare — DockForge</title>
+<meta name="description" content="Compare multiple aptamer sequences side by side: folding quality, HADDOCK scores, binding residues, and interaction patterns.">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚖️</text></svg>">
+</head>
+<body>
+
+<main class="wrap">
+  <h1>Aptamer Compare ⚖️</h1>
+  <p class="lead muted">Compare 2–5 aptamer sequences side by side: fold them, analyze GC content, check for pseudoknots,
+  and score them for HADDOCK docking readiness.</p>
+
+  <h2>Add sequences</h2>
+  <div class="panel">
+    <p class="small muted" style="margin-top:0">Paste one sequence per box. DNA or RNA, 5–200 nt each.</p>
+    <div id="seqSlots"></div>
+    <div class="row" style="margin-top:.6rem;gap:8px;flex-wrap:wrap">
+      <button class="btn small" id="btnAdd">+ Add sequence</button>
+      <button class="btn" id="btnCompare">⚖️ Compare all</button>
+      <button class="btn ghost" id="btnClear">✕ Clear</button>
+    </div>
+  </div>
+
+  <div id="resultsPanel" style="display:none">
+    <h2>Comparison results</h2>
+
+    <!-- Sequence table -->
+    <div class="panel" id="seqTable"></div>
+
+    <!-- Folding comparison -->
+    <div class="panel" id="foldTable"></div>
+
+    <!-- Ranking -->
+    <div class="panel" id="rankPanel"></div>
+
+    <!-- Download -->
+    <div class="panel" id="dlPanel">
+      <div class="row" style="gap:8px">
+        <button class="btn small" id="dlCsv">⬇ comparison.csv</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer class="footer"><div class="wrap">
+  <a href="index.html">DockForge</a> · folding via
+  <a href="https://www.ebi.ac.uk/Tools/sfc/rnafold/" target="_blank" rel="noopener">EMBL-EBI RNAfold</a> ·
+  runs 100% locally — no uploads · <a href="https://github.com/CliffVale/dockforge-app" target="_blank" rel="noopener">source (MIT)</a>
+</div></footer>
+
+<script src="assets/science.js"></script>
+<script src="assets/haddock.js"></script>
+<script src="assets/pipeline.js"></script>
+<script src="assets/app.js"></script>
+<script>
+(function(){
+  "use strict";
+  const { $, $$, esc } = window.DF;
+  const P = window.DFPipeline;
+  const H = window.DFHaddock;
+
+  let slotCount = 0;
+  const results = [];
+
+  function addSlot(name, seq) {
+    slotCount++;
+    const div = document.createElement("div");
+    div.className = "row";
+    div.style.cssText = "margin:.5rem 0;gap:8px;align-items:flex-start;flex-wrap:wrap";
+    div.innerHTML =
+      '<input type="text" class="seq-name" value="' + esc(name || "Seq " + slotCount) + '" ' +
+        'style="width:10rem;padding:.4rem;border-radius:6px;background:var(--card);color:var(--fg);border:1px solid var(--border);font-size:.85rem" ' +
+        'placeholder="Name">' +
+      '<textarea class="seq-data" rows="2" ' +
+        'style="flex:1;min-width:200px;font-family:ui-monospace,Menlo,Consolas,monospace;padding:.5rem;border-radius:8px;background:var(--card);color:var(--fg);border:1px solid var(--border);resize:vertical;font-size:.85rem" ' +
+        'placeholder="Paste sequence…">' + esc(seq || "") + '</textarea>' +
+      '<button class="btn ghost small btn-remove" title="Remove">✕</button>';
+    div.querySelector(".btn-remove").addEventListener("click", () => div.remove());
+    $("#seqSlots").appendChild(div);
+  }
+
+  function getSequences() {
+    const slots = $$("#seqSlots > div");
+    const out = [];
+    for (const slot of slots) {
+      const name = slot.querySelector(".seq-name").value.trim();
+      const seq = slot.querySelector(".seq-data").value.trim().replace(/[\s0-9]/g, "").toUpperCase();
+      if (seq.length >= 5) out.push({ name: name || "Seq " + (out.length + 1), sequence: seq });
+    }
+    return out;
+  }
+
+  async function doCompare() {
+    const seqs = getSequences();
+    if (seqs.length < 2) { DF.toast("Add at least 2 sequences to compare", "warn"); return; }
+    if (seqs.length > 5) { DF.toast("Max 5 sequences for browser performance", "warn"); return; }
+
+    results.length = 0;
+    for (const s of seqs) {
+      const a = P.analyzeSequence(s.sequence);
+      if (a.error) { DF.toast(a.error + " — skipping " + s.name, "warn"); continue; }
+
+      let fold = { structure: ".".repeat(a.sequence.length), mfe: 0, fallback: true };
+      try {
+        fold = await P.foldSequence(a.sequence);
+      } catch (e) { /* skip fold error */ }
+
+      const pk = P.detectPseudoknots(fold.structure);
+      results.push({ ...s, analysis: a, folding: fold, pk });
+    }
+
+    if (results.length < 2) { DF.toast("Need at least 2 valid sequences", "warn"); return; }
+    renderResults();
+    DF.toast("Compared " + results.length + " sequences");
+  }
+
+  function renderResults() {
+    showPanel("#resultsPanel");
+
+    // Sequence comparison table
+    let html = "<h3>Sequence Properties</h3>";
+    html += "<table><thead><tr><th>Name</th><th>Length</th><th>Type</th><th>GC %</th><th>Stability</th></tr></thead><tbody>";
+    for (const r of results) {
+      html += "<tr><td>" + esc(r.name) + "</td><td>" + r.analysis.length + " nt</td><td>" + r.analysis.type + "</td>";
+      html += "<td>" + r.analysis.gcContent + "%</td>";
+      html += "<td>" + (r.analysis.isHighGC ? "🟢 High" : "🟡 Normal") + "</td></tr>";
+    }
+    html += "</tbody></table>";
+    $("#seqTable").innerHTML = html;
+
+    // Folding comparison
+    let foldHtml = "<h3>Folding Comparison (RNAfold)</h3>";
+    foldHtml += "<table><thead><tr><th>Name</th><th>MFE (kcal/mol)</th><th>Base pairs</th><th>Paired %</th><th>Pseudoknot</th><th>Structure</th></tr></thead><tbody>";
+    for (const r of results) {
+      foldHtml += "<tr><td>" + esc(r.name) + "</td>";
+      foldHtml += "<td>" + (r.folding.mfe || 0).toFixed(2) + "</td>";
+      foldHtml += "<td>" + r.pk.basePairs + "</td>";
+      foldHtml += "<td>" + r.pk.pairedFraction + "%</td>";
+      foldHtml += "<td>" + (r.pk.hasPseudoknot ? "⚠️ Yes" : "✅ No") + "</td>";
+      foldHtml += "<td class='mono' style='font-size:.75rem;word-break:break-all;max-width:200px'>" + esc(r.folding.structure || "—") + "</td></tr>";
+    }
+    foldHtml += "</tbody></table>";
+    $("#foldTable").innerHTML = foldHtml;
+
+    // Ranking
+    const ranked = results.slice().sort((a, b) => {
+      // Score: lower MFE + higher paired% + no pseudoknot = better
+      const scoreA = (a.folding.mfe || 0) - (a.pk.pairedFraction * 0.5) + (a.pk.hasPseudoknot ? 20 : 0);
+      const scoreB = (b.folding.mfe || 0) - (b.pk.pairedFraction * 0.5) + (b.pk.hasPseudoknot ? 20 : 0);
+      return scoreA - scoreB;
+    });
+
+    let rankHtml = "<h3>HADDOCK Readiness Ranking</h3>";
+    rankHtml += "<p class='small muted'>Ranked by folding stability (lower MFE + higher paired fraction + no pseudoknots = better).</p>";
+    rankHtml += "<table><thead><tr><th>#</th><th>Name</th><th>MFE</th><th>Paired</th><th>Pseudoknot</th><th>Verdict</th></tr></thead><tbody>";
+    ranked.forEach((r, i) => {
+      const verdict = !r.pk.hasPseudoknot && r.pk.pairedFraction > 40 && (r.folding.mfe || 0) < -5
+        ? "✅ Ready" : r.pk.hasPseudoknot ? "⚠️ Review PK" : "🟡 Check fold";
+      rankHtml += "<tr><td>" + (i + 1) + "</td><td>" + esc(r.name) + "</td>";
+      rankHtml += "<td>" + (r.folding.mfe || 0).toFixed(2) + "</td>";
+      rankHtml += "<td>" + r.pk.pairedFraction + "%</td>";
+      rankHtml += "<td>" + (r.pk.hasPseudoknot ? "Yes" : "No") + "</td>";
+      rankHtml += "<td>" + verdict + "</td></tr>";
+    });
+    rankHtml += "</tbody></table>";
+    $("#rankPanel").innerHTML = rankHtml;
+  }
+
+  function showPanel(id) { $(id).style.display = "block"; }
+
+  function wireCsv() {
+    $("#dlCsv").addEventListener("click", () => {
+      if (!results.length) return;
+      const rows = [["name","length","type","gc_pct","mfe","base_pairs","paired_pct","pseudoknot"]];
+      for (const r of results) {
+        rows.push([r.name, r.analysis.length, r.analysis.type, r.analysis.gcContent,
+          (r.folding.mfe || 0).toFixed(2), r.pk.basePairs, r.pk.pairedFraction,
+          r.pk.hasPseudoknot ? "yes" : "no"]);
+      }
+      const csv = rows.map(r => r.join(",")).join("\n");
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+      a.download = "aptamer_comparison.csv";
+      a.click();
+    });
+  }
+
+  function doClear() {
+    results.length = 0;
+    $("#seqSlots").innerHTML = "";
+    slotCount = 0;
+    ["#resultsPanel"].forEach(id => $(id).style.display = "none");
+    addSlot();
+    addSlot();
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    addSlot("Aptamer 1", "");
+    addSlot("Aptamer 2", "");
+    $("#btnAdd").addEventListener("click", () => addSlot());
+    $("#btnCompare").addEventListener("click", doCompare);
+    $("#btnClear").addEventListener("click", doClear);
+    wireCsv();
+  });
+})();
+</script>
+</body>
+</html>

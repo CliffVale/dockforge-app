@@ -24,7 +24,10 @@
     { href: "find.html", label: "Structure Finder", icon: "🔎", group: "Work" },
     { href: "tester.html", label: "Format Tester", icon: "🧪", group: "Work" },
     { href: "resources.html", label: "Resources", icon: "📚", group: "Reference" },
-    { href: "workflow.html", label: "All-in-one workflow", icon: "🧭", group: "How-to" }
+    { href: "workflow.html", label: "All-in-one workflow", icon: "🧭", group: "How-to" },
+    { href: "pipeline.html", label: "Aptamer Pipeline", icon: "🧬", group: "Work" },
+    { href: "compare.html", label: "Aptamer Compare", icon: "⚖️", group: "Work" },
+    { href: "haddock.html", label: "HADDOCK Analyzer", icon: "🔬", group: "Work" }
   ];
 
   function hereName() { return location.pathname.split("/").pop() || "index.html"; }
@@ -111,7 +114,10 @@
     "find.html": "Search the RCSB PDB by name or PDB ID, and PubChem by name, CID or SMILES — then copy the chosen structure straight to the lab or the viewer.",
     "tester.html": "Drop any structure file and see it parsed, converted to other formats, and validated — with a pass/fail table so you can trust the result yourself.",
     "resources.html": "Curated links to the official docs and data sources behind DockForge: structure databases, file-format specs, visualization tools, and the docking tools we interoperate with.",
-    "workflow.html": "One plain-English page for how to go from a protein and a molecule to a browser docking run — and exactly what DockForge does and does not do."
+    "workflow.html": "One plain-English page for how to go from a protein and a molecule to a browser docking run — and exactly what DockForge does and does not do.",
+    "pipeline.html": "End-to-end aptamer pipeline: enter a sequence, fold it with RNAfold, prepare structures, and guide HADDOCK docking — all in your browser.",
+    "compare.html": "Compare multiple aptamer sequences side by side: fold quality, HADDOCK scores, binding residues, and interaction patterns.",
+    "haddock.html": "Drop your HADDOCK output to analyze scores, clusters, contacts, and binding hotspots — with interactive 3D visualization."
   };
 
   // ---------- command palette (⌘K) ----------

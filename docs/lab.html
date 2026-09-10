@@ -163,6 +163,23 @@
     <a href="https://durrantlab.pitt.edu/apps/webina/" target="_blank" rel="noopener">Webina in its own tab</a> —
     everything else on this page still applies.</p>
 
+  <h2>Aptamer folding + HADDOCK prep (optional)</h2>
+  <div class="panel">
+    <p class="small muted" style="margin-top:0">Working with DNA/RNA aptamers? Fold your sequence with RNAfold and get HADDOCK submission guidance — all in the browser.</p>
+    <div class="row" style="gap:8px;flex-wrap:wrap;align-items:flex-end">
+      <div style="flex:1;min-width:200px">
+        <label class="small muted">Aptamer sequence (5–200 nt)</label>
+        <textarea id="aptamerSeq" rows="2" style="width:100%;font-family:ui-monospace,Menlo,Consolas,monospace;padding:.4rem;border-radius:6px;background:var(--card);color:var(--fg);border:1px solid var(--border);font-size:.85rem;margin-top:.3rem" placeholder="Paste DNA/RNA sequence…"></textarea>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn small" id="btnFoldAptamer">🔬 Fold</button>
+        <button class="btn ghost small" id="btnHaddockGuide">📋 HADDOCK guide</button>
+        <a class="btn ghost small" href="pipeline.html">🚀 Full pipeline →</a>
+      </div>
+    </div>
+    <div id="aptamerResult" style="display:none;margin-top:.6rem"></div>
+  </div>
+
   <h2>Peek at the pocket before you dock (optional)</h2>
   <div class="panel">
     <div class="row spread">
@@ -188,11 +205,15 @@
 </div></footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/2.4.0/3Dmol-min.js"></script>
+<script src="assets/haddock.js"></script>
+<script src="assets/pipeline.js"></script>
 <script src="assets/app.js"></script>
 <script>
 (function(){
   "use strict";
   const { $, $$ } = window.DF;
+  const P = window.DFPipeline;
+  const H = window.DFHaddock;
 
   /* ---------------- example kits ---------------- */
   const KITS = {
@@ -323,9 +344,60 @@
     else $("#glviewer").innerHTML = '<div class="vhint">3D viewer could not load (offline?).</div>';
   }
 
+  /* ---------- Aptamer folding + HADDOCK guide ---------- */
+  function wireAptamer() {
+    const btnFold = $("#btnFoldAptamer");
+    const btnGuide = $("#btnHaddockGuide");
+    if (!btnFold) return;
+
+    btnFold.addEventListener("click", async () => {
+      const raw = $("#aptamerSeq").value;
+      if (!raw) { DF.toast("Enter a sequence first", "warn"); return; }
+      const a = P.analyzeSequence(raw);
+      if (a.error) { DF.toast(a.error, "warn"); return; }
+
+      const result = $("#aptamerResult");
+      result.style.display = "block";
+      result.innerHTML = "<p class='muted'>⏳ Folding with RNAfold…</p>";
+
+      try {
+        const fold = await P.foldSequence(a.sequence);
+        const pk = P.detectPseudoknots(fold.structure);
+
+        let html = "<table><tr><th>Property</th><th>Value</th></tr>";
+        html += "<tr><td>Type</td><td>" + a.type + "</td></tr>";
+        html += "<tr><td>Length</td><td>" + a.length + " nt</td></tr>";
+        html += "<tr><td>GC content</td><td>" + a.gcContent + "%</td></tr>";
+        html += "<tr><td>MFE</td><td>" + (fold.mfe || 0).toFixed(2) + " kcal/mol</td></tr>";
+        html += "<tr><td>Base pairs</td><td>" + pk.basePairs + " (" + pk.pairedFraction + "% paired)</td></tr>";
+        html += "<tr><td>Structure</td><td class='mono' style='word-break:break-all;font-size:.8rem'>" + esc(fold.structure) + "</td></tr>";
+        html += "<tr><td>Pseudoknot</td><td>" + (pk.hasPseudoknot ? "⚠️ Detected" : "✅ None") + "</td></tr>";
+        html += "</table>";
+        html += "<p class='small muted'>" + esc(pk.suggestion) + "</p>";
+        result.innerHTML = html;
+        DF.toast("Folded: MFE " + (fold.mfe || 0).toFixed(2) + " kcal/mol");
+      } catch (e) {
+        result.innerHTML = "<div class='warnbox'>⚠️ " + esc(e.message) + "</div>";
+      }
+    });
+
+    btnGuide.addEventListener("click", () => {
+      const raw = $("#aptamerSeq").value;
+      const a = P.analyzeSequence(raw || "");
+      const result = $("#aptamerResult");
+      result.style.display = "block";
+      if (H && H.haddockPrepGuide) {
+        result.innerHTML = H.haddockPrepGuide({ sequence: a.sequence || "" });
+      } else {
+        result.innerHTML = "<div class='warnbox'>⚠️ HADDOCK guide requires haddock.js</div>";
+      }
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
     wireKits();
     wireViewer();
+    wireAptamer();
   });
 })();
 </script>

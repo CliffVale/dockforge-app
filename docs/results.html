@@ -75,6 +75,27 @@
     </div>
   </div>
 
+  <div class="panel" id="haddockPanel" style="display:none">
+    <div class="row spread">
+      <h3 style="margin:0">🔬 HADDOCK score analysis</h3>
+      <button class="btn ghost small" id="haddockHelp">what is this?</button>
+    </div>
+    <p class="small muted" style="margin:.3rem 0 .6rem">Drop a <b>HADDOCK score list</b> (the_score.list) to see model rankings, clusters, and binding energy breakdowns.
+    Works alongside Vina output — mix and match.</p>
+    <div class="row" style="gap:10px;flex-wrap:wrap">
+      <button class="btn small" id="btnHaddockScore">Drop score list…</button>
+      <input type="file" id="fileHaddockScore" accept=".txt,.list,.csv" style="display:none">
+      <span class="small muted" id="haddockScoreName"></span>
+    </div>
+    <div id="haddockResults" style="margin-top:.6rem"></div>
+    <div class="warnbox" id="haddockHelpBox" style="display:none">
+      <b>HADDOCK 2.4</b> is a protein–nucleic acid docking server. Its <i>the_score.list</i> file ranks
+      models by intermolecular energy (vdw + elec + desolv). A score &lt; −100 kcal/mol is "excellent",
+      −80 to −100 is "good". This analyzer parses the list, clusters nearby models, and shows the energy
+      breakdown. For full 3D analysis, use the <a href="haddock.html">HADDOCK Analyzer</a> page.
+    </div>
+  </div>
+
   <div class="panel" id="notebookPanel" style="display:none">
     <div class="row spread">
       <h3 style="margin:0">📔 Lab notebook</h3>
@@ -96,6 +117,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/2.4.0/3Dmol-min.js"></script>
 <script src="assets/formats.js"></script>
 <script src="assets/science.js"></script>
+<script src="assets/haddock.js"></script>
 <script src="assets/app.js"></script>
 <script>
 (function(){
@@ -407,7 +429,79 @@
     wireCsv();
     wireValidator();
     wireNotebook();
+    wireHaddockAnalysis();
   });
+
+  /* ---------- HADDOCK score analysis ---------- */
+  function wireHaddockAnalysis(){
+    const H = window.DFHaddock;
+    if (!H) return;
+    const btn = $("#btnHaddockScore"), file = $("#fileHaddockScore");
+    if (!btn || !file) return;
+
+    $("#haddockHelp").addEventListener("click", () => {
+      const box = $("#haddockHelpBox");
+      box.style.display = box.style.display === "none" ? "block" : "none";
+    });
+
+    btn.addEventListener("click", () => file.click());
+    file.addEventListener("click", e => e.stopPropagation());
+    file.addEventListener("change", () => {
+      const f = file.files[0];
+      if (!f) return;
+      const r = new FileReader();
+      r.onload = () => analyzeHaddockScores(String(r.result), f.name);
+      r.readAsText(f);
+    });
+    // Also support drag-drop on the panel
+    const panel = $("#haddockPanel");
+    ["dragover","dragenter"].forEach(ev => panel.addEventListener(ev, e => e.preventDefault()));
+    panel.addEventListener("drop", e => {
+      e.preventDefault();
+      const f = e.dataTransfer.files[0];
+      if (!f) return;
+      const r = new FileReader();
+      r.onload = () => analyzeHaddockScores(String(r.result), f.name);
+      r.readAsText(f);
+    });
+  }
+
+  function analyzeHaddockScores(text, name){
+    const H = window.DFHaddock;
+    const host = $("#haddockResults");
+    if (!H || !H.parseScoreList) { host.innerHTML = "<p class='muted'>HADDOCK analysis library not loaded.</p>"; return; }
+
+    const models = H.parseScoreList(text);
+    if (!models.length) { host.innerHTML = "<div class='warnbox'>No models found in " + DF.esc(name) + "</div>"; return; }
+
+    const clusters = H.clusterModels(models, 5.0);
+    const best = models.reduce((a, b) => a.score < b.score ? a : b);
+    const interp = H.interpretHaddockScore(best.score);
+
+    let html = "<h4>From: " + DF.esc(name) + "</h4>";
+    html += "<table style='width:100%'><tr><th>Models</th><th>Best score</th><th>Clusters</th><th>Best cluster</th></tr>";
+    html += "<td>" + models.length + "</td>";
+    html += "<td class='mono' style='color:" + interp.color + "'>" + best.score.toFixed(1) + " — " + interp.label + "</td>";
+    html += "<td>" + clusters.length + "</td>";
+    html += "<td>Cluster " + (clusters[0] ? clusters[0].id : "—") + " (" + (clusters[0] ? clusters[0].size : 0) + " models)</td>";
+    html += "</tr></table>";
+
+    // Top 5 models
+    html += "<h4>Top 5 models</h4>";
+    html += "<table style='width:100%'><thead><tr><th>Rank</th><th>Score</th><th>vdw</th><th>elec</th><th>desolv</th><th>Cluster</th></tr></thead><tbody>";
+    models.slice(0, 5).forEach(m => {
+      const i2 = H.interpretHaddockScore(m.score);
+      html += "<tr><td>" + m.rank + "</td><td class='mono' style='color:" + i2.color + "'>" + m.score.toFixed(1) + "</td>";
+      html += "<td class='mono'>" + (m.vdw||0).toFixed(1) + "</td>";
+      html += "<td class='mono'>" + (m.elec||0).toFixed(1) + "</td>";
+      html += "<td class='mono'>" + (m.desolv||0).toFixed(1) + "</td>";
+      html += "<td>" + (m.cluster||"—") + "</td></tr>";
+    });
+    html += "</tbody></table>";
+
+    if (window.DFScience) DFScience.awardBadge("haddock-pro");
+    host.innerHTML = html;
+  }
 })();
 </script>
 </body>
